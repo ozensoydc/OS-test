@@ -30,8 +30,8 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
-  printf("in process_execute\n");
+  struct thread* cur_t=thread_current();
+  printf("in process_execute tid:%d\n", cur_t->tid);
   
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -49,6 +49,25 @@ process_execute (const char *file_name)
     printf("tid error \n");
     palloc_free_page (fn_copy);
   } 
+  
+  struct list_elem* e;
+  /*return TID error if child dead */
+  for(e=list_begin(cur_t->children);
+      e!=list_end(cur_t->children);
+      e=list_next(e)){
+    child=list_entry(e,struct thread,child_elem);
+    if(child->tid==child_tid){
+      break;
+    }
+  }
+  struct child_status* child_stat=get_child_status(tid);
+  if(child_status != NULL && child_status->tid==tid && 
+     child_status->return_status == -1){
+    return TID_ERROR;
+  }
+    
+  //for(e=
+  
   return tid;
 }
 
@@ -171,17 +190,61 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(1){
+  struct thread* cur_t=thread_current();
+  struct list_elem* e;
+  struct thread* child;
+  for(e=list_begin(cur_t->children);
+      e!=list_end(cur_t->children);
+      e=list_next(e)){
+    child=list_entry(e,struct thread,child_elem);
+    if(child->tid==child_tid){
+      break;
+    }
   }
-  return -1;
+  if(child->parent_tid!=cur_t->tid && 
+     child->status==THREAD_DYING && child->child_waiting!=NULL && child!=NULL){
+    printf("not a child of calling process or process dying: return -1\n");
+    return -1;
+  }
+  if(child->tid!=child_tid && child!=NULL)
+    return -1;
+  
+  struct child_status*=get_child_status(child_tid);
+  
+  if(child_status!=NULL){
+    child_status->return_status=-1;
+    list_remove(&child_status->status_elem);
+    return child_status->return_status;
+  }
+  
+ 
+  struct semaphore* child_waiting=(struct semaphore*)
+    malloc(sizeof(semaphore));
+  sema_init(child_waiting,0);
+  child->child_waiting=child_waiting;
+  
+  if(child->status!=THREAD_DYING){
+    sema_down(child_waiting);
+    child_status=get_child_status(child_tid);
+    child_status->return_status=-1;
+    list_remove(&child_status->status_elem);
+    sema_down(child_waiting);
+  }
+  free(child_waiting);
+  
+  return child_status->return_status;
+  //thread_yield();
+  
 }
+
 
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
+  printf("in process exit\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -197,10 +260,16 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
+      printf("in pd!=NULL\n");
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  if(cur->child_waiting!=NULL){
+    sema_up(cur->child_waiting;
+    
+  }
+  printf("exitted process\n");
 }
 
 /* Sets up the CPU for running user code in the current

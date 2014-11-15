@@ -89,13 +89,21 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    
+    
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct list* children;
+    struct list_elem child_elem;
+    struct list* child_stati;
+    
+    struct semaphore* child_waiting;
+    struct thread* parent_t;
+    //tid_t parent_tid;
 #endif
 
     /* Owned by thread.c. */
@@ -105,6 +113,14 @@ struct thread
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
+
+struct child_status {
+  tid_t child_tid;
+  int return_status;
+  enum thread_status status;
+  struct list_elem status_elem;
+}
+
 extern bool thread_mlfqs;
 
 void thread_init (void);
@@ -137,5 +153,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct child_status* get_child_status(tid_t child_tid);
+
 
 #endif /* threads/thread.h */
