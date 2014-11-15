@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -50,18 +51,18 @@ process_execute (const char *file_name)
     palloc_free_page (fn_copy);
   } 
   
-  struct list_elem* e;
+  //struct list_elem* e;
   /*return TID error if child dead */
-  for(e=list_begin(cur_t->children);
+  /*for(e=list_begin(cur_t->children);
       e!=list_end(cur_t->children);
       e=list_next(e)){
     child=list_entry(e,struct thread,child_elem);
     if(child->tid==child_tid){
       break;
     }
-  }
-  struct child_status* child_stat=get_child_status(tid);
-  if(child_status != NULL && child_status->tid==tid && 
+    }*/
+  struct child_status* child_status=get_child_status(tid);
+  if(child_status != NULL && child_status->child_tid==tid && 
      child_status->return_status == -1){
     return TID_ERROR;
   }
@@ -203,7 +204,7 @@ process_wait (tid_t child_tid)
       break;
     }
   }
-  if(child->parent_tid!=cur_t->tid && 
+  if(child->parent_t->tid==cur_t->tid && 
      child->status==THREAD_DYING && child->child_waiting!=NULL && child!=NULL){
     printf("not a child of calling process or process dying: return -1\n");
     return -1;
@@ -211,7 +212,7 @@ process_wait (tid_t child_tid)
   if(child->tid!=child_tid && child!=NULL)
     return -1;
   
-  struct child_status*=get_child_status(child_tid);
+  struct child_status* child_status=get_child_status(child_tid);
   
   if(child_status!=NULL){
     child_status->return_status=-1;
@@ -221,7 +222,7 @@ process_wait (tid_t child_tid)
   
  
   struct semaphore* child_waiting=(struct semaphore*)
-    malloc(sizeof(semaphore));
+    malloc(sizeof(struct semaphore));
   sema_init(child_waiting,0);
   child->child_waiting=child_waiting;
   
@@ -266,7 +267,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   if(cur->child_waiting!=NULL){
-    sema_up(cur->child_waiting;
+    sema_up(cur->child_waiting);
     
   }
   printf("exitted process\n");

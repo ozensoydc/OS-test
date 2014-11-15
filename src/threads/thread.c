@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -71,6 +72,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 void add_children(struct thread* child);
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -296,7 +299,7 @@ thread_exit (void)
   ASSERT (!intr_context ());
   struct thread* t=thread_current();
 #ifdef USERPROG
-  if(t->parent!=NULL){
+  if(t->parent_t!=NULL){
     make_child_status();
   }
   if(t->child_waiting!=NULL){
@@ -484,7 +487,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(t->children);
   list_init(t->child_stati);
 #endif
-  t->waiting=0;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -592,11 +594,11 @@ struct child_status* get_child_status(tid_t child_tid){
     (struct child_status*)malloc(sizeof(struct child_status));
   struct thread* cur_thread=thread_current();
   struct list_elem* e;
-  for(e=list_begin(cur_t->child_stati);
-      e!=list_end(cur_t->child_stati);
+  for(e=list_begin(cur_thread->child_stati);
+      e!=list_end(cur_thread->child_stati);
       e=list_next(e)){
     child_stat=list_entry(e,struct child_status, status_elem);
-    if(child_stat->tid==child_tid){
+    if(child_stat->child_tid==child_tid){
       return child_stat;
     }
   }
@@ -605,14 +607,14 @@ struct child_status* get_child_status(tid_t child_tid){
 
 
 /* make child_status to be called in get_child_Status and add it to parent */
-struct child_status* make_child_status(){
+struct child_status* make_child_status(void){
   struct thread* child=thread_current();
-  struct thread* parent=get_thread_by_tid(child->parent_tid);
+  struct thread* parent=child->parent_t;//get_thread_by_tid(child->parent_tid);
   struct child_status* child_stat=
-    (struct child_status*)malloc(sizeof(child_status));
+    (struct child_status*)malloc(sizeof(struct child_status));
   child_stat->child_tid=child->tid;
   child_stat->status=child->status;
-  list_push_back(parent->child_stati,child->status_elem);
+  list_push_back(parent->child_stati,&child_stat->status_elem);
   return child_stat;
 }
 
@@ -625,7 +627,7 @@ struct thread* get_thread_by_tid(tid_t td){
   for(e=list_begin(&all_list);
       e!=list_end(&all_list);
       e=list_next(e)){
-    ret_thread=list_get_element(e,struct thread,allelem);
+    ret_thread=list_entry(e,struct thread,allelem);
     if(ret_thread->tid==td){
       return ret_thread;
     }

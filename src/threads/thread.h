@@ -119,7 +119,7 @@ struct child_status {
   int return_status;
   enum thread_status status;
   struct list_elem status_elem;
-}
+};
 
 extern bool thread_mlfqs;
 
@@ -155,6 +155,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 struct child_status* get_child_status(tid_t child_tid);
-
-
+struct child_status* make_child_status(void);
+struct thread* get_thread_by_tid(tid_t tid);
 #endif /* threads/thread.h */
