@@ -301,6 +301,7 @@ thread_exit (void)
 #ifdef USERPROG
   if(t->parent_t!=NULL){
     make_child_status();
+    list_remove(&t->child_elem);
   }
   if(t->child_waiting!=NULL){
     sema_up(t->child_waiting);
@@ -484,8 +485,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   
 #ifdef USERPROG
-  list_init(t->children);
-  list_init(t->child_stati);
+  //struct list* children=(struct list*)malloc(sizeof(struct list));
+  //struct list* child_stati=(struct list*)malloc(sizeof(struct list));	
+  
+  list_init(&t->children);
+  list_init(&t->child_stati);
+  //t->children=children;
+  //t->child_stati=child_stati;
 #endif
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
@@ -594,8 +600,8 @@ struct child_status* get_child_status(tid_t child_tid){
     (struct child_status*)malloc(sizeof(struct child_status));
   struct thread* cur_thread=thread_current();
   struct list_elem* e;
-  for(e=list_begin(cur_thread->child_stati);
-      e!=list_end(cur_thread->child_stati);
+  for(e=list_begin(&cur_thread->child_stati);
+      e!=list_end(&cur_thread->child_stati);
       e=list_next(e)){
     child_stat=list_entry(e,struct child_status, status_elem);
     if(child_stat->child_tid==child_tid){
@@ -614,7 +620,7 @@ struct child_status* make_child_status(void){
     (struct child_status*)malloc(sizeof(struct child_status));
   child_stat->child_tid=child->tid;
   child_stat->status=child->status;
-  list_push_back(parent->child_stati,&child_stat->status_elem);
+  list_push_back(&parent->child_stati,&child_stat->status_elem);
   return child_stat;
 }
 
@@ -638,7 +644,7 @@ struct thread* get_thread_by_tid(tid_t td){
 /* add upon current thread, the child thread */
 void add_children(struct thread* child){
   struct thread* parent=thread_current();
-  list_push_back(parent->children,&child->child_elem);
+  list_push_back(&parent->children,&child->child_elem);
   //child->parent_tid=parent->tid;
   child->parent_t=parent;
   return;

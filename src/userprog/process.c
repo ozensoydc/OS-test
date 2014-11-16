@@ -196,8 +196,8 @@ process_wait (tid_t child_tid)
   struct thread* cur_t=thread_current();
   struct list_elem* e;
   struct thread* child;
-  for(e=list_begin(cur_t->children);
-      e!=list_end(cur_t->children);
+  for(e=list_begin(&cur_t->children);
+      e!=list_end(&cur_t->children);
       e=list_next(e)){
     child=list_entry(e,struct thread,child_elem);
     if(child->tid==child_tid){
