@@ -14,11 +14,17 @@ main (int argc, char *argv[])
 
   msg ("begin");
   msg ("argc = %d", argc);
+  msg("is this even working\n");
   for (i = 0; i <= argc; i++)
-    if (argv[i] != NULL)
+      msg("before check\n");
+    if (argv[i] != NULL) {
+        msg("not elsing\n");
       msg ("argv[%d] = '%s'", i, argv[i]);
-    else
+    }
+    else {
+        msg("elsing\n");
       msg ("argv[%d] = null", i);
+    }
   msg ("end");
 
   return 0;
