@@ -89,21 +89,24 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    
-    
-    
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct list children;
     struct list_elem child_elem;
     struct list child_stati;
-    
-    struct semaphore* child_waiting;
-    struct thread* parent_t;
-    //tid_t parent_tid;
+
+    struct semaphore *child_waiting;
+    struct thread *parent_t;
+
+    struct list files;
+    int next_fd;
+    struct file *process_file;
+
 #endif
 
     /* Owned by thread.c. */
@@ -113,14 +116,6 @@ struct thread
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
-
-struct child_status {
-  tid_t child_tid;
-  int return_status;
-  enum thread_status status;
-  struct list_elem status_elem;
-};
-
 extern bool thread_mlfqs;
 
 void thread_init (void);
@@ -135,7 +130,7 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 
-struct thread *thread_current (void);
+struct thread* thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
@@ -154,7 +149,23 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+struct child_status {
+    tid_t child_tid;
+    int return_status;
+    enum thread_status status;
+    struct list_elem status_elem;
+};
+
+struct file_handle {
+    int fd;
+    struct file *file;
+    struct list_elem elem;
+};
+
 struct child_status* get_child_status(tid_t child_tid);
 struct child_status* make_child_status(void);
 struct thread* get_thread_by_tid(tid_t tid);
+int thread_add_fd(struct file *file);
+struct file_handle* thread_get_fh(struct list *files, int fd);
+void thread_remove_file (struct file_handle *fh);
 #endif /* threads/thread.h */

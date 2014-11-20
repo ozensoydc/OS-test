@@ -73,7 +73,6 @@ void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 void add_children(struct thread* child);
 
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -186,7 +185,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -206,12 +205,11 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-  
-  #ifdef USERPROG
-  /*add new thread to list of children*/
+
+#ifdef USERPROG
   add_children(t);
-  #endif
-  
+#endif
+
   intr_set_level (old_level);
 
   /* Add to run queue. */
@@ -297,16 +295,40 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
-  struct thread* t=thread_current();
+  struct thread *t = thread_current();
+
 #ifdef USERPROG
-  if(t->parent_t!=NULL){
-    make_child_status();
-    list_remove(&t->child_elem);
+  //printf("1");
+  if (t->parent_t != NULL) {
+      //printf("2");
+      make_child_status();
+      //printf("3");
+      list_remove(&t->child_elem);
+      //printf("4");
   }
-  if(t->child_waiting!=NULL){
-    sema_up(t->child_waiting);
+  //printf("5");
+  if (t->child_waiting != NULL) {
+      //printf("6");
+      sema_up(t->child_waiting);
+      //printf("7");
   }
+  struct list_elem *e;
+  struct thread *child;
+  // When process dies, removes its status
+  // as parent to each of its children
+
+  /*
+  for (e = list_begin(&t->children);
+       e != list_end(&t->children);
+       e = list_next(e)) {
+      child = list_entry(e, struct thread, child_elem);
+      list_remove(&child->child_elem);
+      child->parent_t = NULL;
+  }
+  */
+  //printf("8");
   process_exit ();
+  //printf("9");
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -483,16 +505,14 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  
+
 #ifdef USERPROG
-  //struct list* children=(struct list*)malloc(sizeof(struct list));
-  //struct list* child_stati=(struct list*)malloc(sizeof(struct list));	
-  
   list_init(&t->children);
   list_init(&t->child_stati);
-  //t->children=children;
-  //t->child_stati=child_stati;
+  list_init(&t->files);
+  t->next_fd = 3;
 #endif
+
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -593,62 +613,108 @@ schedule (void)
   thread_schedule_tail (prev);
 }
 
-/* get child_status */
-
-struct child_status* get_child_status(tid_t child_tid){
-  struct child_status* child_stat=
-    (struct child_status*)malloc(sizeof(struct child_status));
-  struct thread* cur_thread=thread_current();
-  struct list_elem* e;
-  for(e=list_begin(&cur_thread->child_stati);
-      e!=list_end(&cur_thread->child_stati);
-      e=list_next(e)){
-    child_stat=list_entry(e,struct child_status, status_elem);
-    if(child_stat->child_tid==child_tid){
-      return child_stat;
+// retrieves childstatus from current_thread matching tid
+struct child_status* 
+get_child_status(tid_t child_tid) 
+{
+    struct child_status* child_stat = 
+        (struct child_status *) malloc(sizeof(struct child_status));
+    struct thread *cur_thread = thread_current();
+    struct list_elem *e;
+    for (e = list_begin(&cur_thread->child_stati);
+         e != list_end(&cur_thread->child_stati);
+         e = list_next(e)) {
+        // might need to actually copy child_stat info.
+        child_stat = list_entry(e, struct child_status, status_elem);
+        if (child_stat->child_tid == child_tid) {
+            return child_stat;
+        }
     }
-  }
-  return NULL;
+    return NULL;
 }
 
+// adds child status info to parents
+struct child_status* 
+make_child_status(void)
+{
+    struct thread *child = thread_current();
+    struct thread *parent = child->parent_t;
+    struct child_status *child_stat = 
+        (struct child_status *) malloc(sizeof(struct child_status));
+    child_stat->child_tid = child->tid;
+    child_stat->status = child->status;
+    list_push_back(&parent->child_stati, &child_stat->status_elem);
+    return child_stat;
 
-/* make child_status to be called in get_child_Status and add it to parent */
-struct child_status* make_child_status(void){
-  struct thread* child=thread_current();
-  struct thread* parent=child->parent_t;//get_thread_by_tid(child->parent_tid);
-  struct child_status* child_stat=
-    (struct child_status*)malloc(sizeof(struct child_status));
-  child_stat->child_tid=child->tid;
-  child_stat->status=child->status;
-  list_push_back(&parent->child_stati,&child_stat->status_elem);
-  return child_stat;
 }
 
-
-/*get thread by tid for any thread using allelem*/
-struct thread* get_thread_by_tid(tid_t td){
-  //struct thread* cur_thread=thread_current();
-  struct thread* ret_thread;
-  struct list_elem* e;
-  for(e=list_begin(&all_list);
-      e!=list_end(&all_list);
-      e=list_next(e)){
-    ret_thread=list_entry(e,struct thread,allelem);
-    if(ret_thread->tid==td){
-      return ret_thread;
+// 
+struct 
+thread* 
+get_thread_by_tid(tid_t td)
+{
+    struct thread *ret_thread;
+    struct list_elem *e;
+    for (e = list_begin(&all_list);
+         e != list_end(&all_list);
+         e = list_next(e)) {
+        ret_thread = list_entry(e, struct thread, allelem);
+        if (ret_thread->tid == td) {
+            return ret_thread;
+        }
     }
-  }
-  return NULL;
+
+    return NULL;
 }
 
-/* add upon current thread, the child thread */
-void add_children(struct thread* child){
-  struct thread* parent=thread_current();
-  list_push_back(&parent->children,&child->child_elem);
-  //child->parent_tid=parent->tid;
-  child->parent_t=parent;
-  return;
+void 
+add_children(struct thread *child)
+{
+    struct thread *parent = thread_current();
+    list_push_back(&parent->children, &child->child_elem);
+    child->parent_t = parent;
+    return;
 }
+
+int 
+thread_add_fd(struct file *file)
+{
+    struct thread *parent = thread_current();
+    struct file_handle *fh = malloc(sizeof(struct file_handle));
+
+    fh->fd = parent->next_fd++;
+    fh->file = file;
+    list_push_front(&parent->files, &fh->elem);
+
+    return fh->fd;
+}
+
+struct file_handle* 
+thread_get_fh(struct list *files, int fd)
+{
+    struct thread *parent = thread_current();
+    struct list_elem *e;
+    struct file_handle *fh;
+
+    for (e = list_begin(&parent->files);
+         e != list_end(&parent->files);
+         e = list_next(e)) {
+        fh = list_entry(e, struct file_handle, elem);
+        if (fh->fd == fd) {
+            return fh;
+        }
+    }
+
+    return NULL;
+}
+        
+
+void 
+thread_remove_file(struct file_handle *fh)
+{
+    list_remove(&fh->elem);
+}
+
 /* Returns a tid to use for a new thread. */
 static tid_t
 allocate_tid (void) 
