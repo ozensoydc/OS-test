@@ -366,7 +366,6 @@ void
 check_valid_pointer(const void *vaddr)
 {
     if (!is_user_vaddr(vaddr) || !pagedir_get_page(thread_current()->pagedir, vaddr) ) {
-        //printf("BAD!\n\n");
         exit(-1);
     }
 }

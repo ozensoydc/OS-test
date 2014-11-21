@@ -107,6 +107,8 @@ struct thread
     int next_fd;
     struct file *process_file;
 
+    struct semaphore *exec_sema;
+
     int ret_status;
 
 #endif

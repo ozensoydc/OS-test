@@ -33,20 +33,37 @@ process_execute (const char *file_name)
 {
     
   char *fn_copy;
+  char *filename_check;
+  char *token;
   tid_t tid;
-  //struct thread *cur_t = thread_current();
+  struct thread *cur_t = thread_current();
+
+  cur_t->exec_sema = (struct semaphore *) malloc(sizeof(struct semaphore));
+  sema_init(cur_t->exec_sema, 0);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+  filename_check = palloc_get_page(0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy(filename_check, file_name, PGSIZE);
+
+  filename_check = strtok_r(file_name, " ", &token);
+
+  struct file *file = filesys_open(filename_check);
+  if (file == NULL) {
+      return TID_ERROR;
+  }
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR) {
     palloc_free_page (fn_copy); 
+  } else {
+      sema_down(cur_t->exec_sema);
+  }
 
   struct child_status *child_status = get_child_status(tid);
   if (child_status != NULL && child_status->child_tid == tid &&
@@ -84,8 +101,15 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   if (!success) {
+      thread_current()->ret_status = -1;
+      printf("%s: exit(%d)\n", thread_current()->name, -1);
+      sema_up(thread_current()->parent_t->exec_sema);
     thread_exit ();
   }
+
+  //printf("was a success\n");
+  sema_up(thread_current()->parent_t->exec_sema);
+
 
   struct file *file = filesys_open(file_name_to_load);
   thread_current()->process_file = file;
@@ -182,10 +206,21 @@ process_wait (tid_t child_tid)
          e != list_end(&cur_t->children);
          e = list_next(e)) {
         child = list_entry(e, struct thread, child_elem);
-        if (child->tid == child_tid)
+        if (child->tid == child_tid) {
             break;
+        }
+        else {
+            child = NULL;
+        }
     }
 
+    /*
+    if (child != NULL) {
+        printf("child name is %s\n", child->name);
+    } else {
+        printf("child thread is NULL too\n");
+    }
+*/
     // Wut? Sanity check?
     // if child's parent is correct and child's status is thread_dying and child is not waiting for any children and child actually exists
     // return with failure
@@ -219,6 +254,7 @@ process_wait (tid_t child_tid)
     // child has already died and passed on its child status to parent
     // returns with childs return status
     if (child_status != NULL) {
+        
         if (child_status->already_waited == 1) {
             //printf("already waited\n");
             return -1;
@@ -246,7 +282,6 @@ process_wait (tid_t child_tid)
     //printf("5\n");
     // waits for child to die off
     if (child->status != THREAD_DYING) {
-        //printf("actually waiting for child\n");
         //waits for child to set semaphore up (presumably when it is sent to die (after process_exit?))
         sema_down(child_waiting);
         child_status = get_child_status(child_tid);
