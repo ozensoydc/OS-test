@@ -168,11 +168,16 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+    //printf("inside process wait\n");
     struct thread *cur_t = thread_current();
     struct list_elem *e;
-    struct thread *child;
+    struct thread *child = NULL;
 
+    int ret;
     //printf("waiting %s\n", thread_current()->name);
+    
+    //printf("1\n");
+    // Find the thread that corresponds to the child
     for (e = list_begin(&cur_t->children);
          e != list_end(&cur_t->children);
          e = list_next(e)) {
@@ -181,40 +186,89 @@ process_wait (tid_t child_tid)
             break;
     }
 
+    // Wut? Sanity check?
+    // if child's parent is correct and child's status is thread_dying and child is not waiting for any children and child actually exists
+    // return with failure
+
+    //printf("2\n");
+    /*
     if (child->parent_t->tid == cur_t->tid &&
         child->status == THREAD_DYING && child->child_waiting != NULL && 
         child != NULL) {
+        printf("Getting killed in first sanity check\n");
         return -1;
     }
+*/
+    // acount for when you get a child_status for a child
+    // originally was just passing through if child_status was null
 
-    if (child->tid != child_tid && child != NULL)
+
+    // WTF?
+    // If tid's dont match, and child is not null, return with failure
+    //printf("3\n");
+    /*
+    if (child->tid != child_tid && child != NULL) {
+        printf("getting killed in seconds check\n");
         return -1;
+    }
+    */
 
     struct child_status *child_status = get_child_status(child_tid);
 
+    //printf("4\n");
+    // child has already died and passed on its child status to parent
+    // returns with childs return status
     if (child_status != NULL) {
-        child_status->return_status = -1;
-        list_remove(&child_status->status_elem);
-        return child_status->return_status;
+        if (child_status->already_waited == 1) {
+            //printf("already waited\n");
+            return -1;
+        } else {
+            //list_remove(&child_status->status_elem);
+            //printf("did not already wait\n");
+            child_status->already_waited = 1;
+            return child_status->return_status;
+        }
     }
+
+    // could not find child in parent and child not already dead
+    if (child == NULL) {
+        return -1;
+    }
+
+    // we should make sure that we arent looking at a child thread that has been freed already
+    // since in that case it should have a child_status struct in parent
 
     struct semaphore *child_waiting = (struct semaphore *)
         malloc(sizeof(struct semaphore));
     sema_init(child_waiting, 0);
     child->child_waiting = child_waiting;
 
+    //printf("5\n");
+    // waits for child to die off
     if (child->status != THREAD_DYING) {
+        //printf("actually waiting for child\n");
+        //waits for child to set semaphore up (presumably when it is sent to die (after process_exit?))
         sema_down(child_waiting);
         child_status = get_child_status(child_tid);
-        child_status->return_status = -1;
-        list_remove(&child_status->status_elem);
-        sema_down(child_waiting);
+        //child_status->return_status = -1;
+        ret = child_status->return_status;
+        // should not remove child_status since can wait for it again
+        child_status->already_waited = 1;
+        //list_remove(&child_status->status_elem);
+        // why do we need this?
+        //sema_down(child_waiting);
+    } else {
+        //printf("fsdfasdf\n");
+        return -1;
     }
 
+    //printf("6\n");
     free(child_waiting);
     //printf("done waiting\n\n\n");
 
-    return child_status->return_status;
+    //printf("doen with process wait\n");
+    return ret;
+    //return child_status->return_status;
 }
 
 /* Free the current process's resources. */
@@ -242,9 +296,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  if (cur->child_waiting != NULL) {
-      sema_up(cur->child_waiting);
-  }
+  
 }
 
 /* Sets up the CPU for running user code in the current

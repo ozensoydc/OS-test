@@ -299,6 +299,7 @@ thread_exit (void)
 
 #ifdef USERPROG
   //printf("1");
+  // CHecks to see if it is a child and makes a child_status for it
   if (t->parent_t != NULL) {
       //printf("2");
       make_child_status();
@@ -307,6 +308,8 @@ thread_exit (void)
       //printf("4");
   }
   //printf("5");
+  //
+  // Alerts parent if it was already waiting
   if (t->child_waiting != NULL) {
       //printf("6");
       sema_up(t->child_waiting);
@@ -643,6 +646,8 @@ make_child_status(void)
         (struct child_status *) malloc(sizeof(struct child_status));
     child_stat->child_tid = child->tid;
     child_stat->status = child->status;
+    child_stat->return_status = child->ret_status;
+    child_stat->already_waited = 0;
     list_push_back(&parent->child_stati, &child_stat->status_elem);
     return child_stat;
 

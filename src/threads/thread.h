@@ -107,6 +107,8 @@ struct thread
     int next_fd;
     struct file *process_file;
 
+    int ret_status;
+
 #endif
 
     /* Owned by thread.c. */
@@ -154,6 +156,7 @@ struct child_status {
     int return_status;
     enum thread_status status;
     struct list_elem status_elem;
+    int already_waited;
 };
 
 struct file_handle {

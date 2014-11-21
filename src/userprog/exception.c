@@ -81,6 +81,9 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
+
+    //printf("killing some process\n\n");
+    thread_current()->ret_status = -1;
   switch (f->cs)
     {
     case SEL_UCSEG:
@@ -151,7 +154,7 @@ page_fault (struct intr_frame *f)
   f->eip = (void (*) (void)) f->eax;
   f->eax = 0xFFFFFFFF;
 
-  //thread_current()->ret = -1;
+  thread_current()->ret_status = -1;
   printf("%s: exit(%d)\n", thread_current()->name, -1);
   thread_exit();
   /* To implement virtual memory, delete the rest of the function
