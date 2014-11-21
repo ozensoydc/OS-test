@@ -116,6 +116,7 @@ syscall_handler (struct intr_frame *f)
                 //printf("checking filesize\n");
                 get_args(f, args, 1);
                 f->eax = filesize(args[0]);
+                break;
             }
         case SYS_READ:
             {
@@ -336,14 +337,12 @@ open(const char *file)
 void 
 check_valid_buffer(void *buffer, unsigned size)
 {
-    //printf("Checking valid buffer\n");
     unsigned i;
     char *local_buffer = (char *) buffer;
     for (i = 0; i < size; i++) {
         check_valid_pointer((const void *) local_buffer);
         local_buffer++;
     }
-    //printf("Buffer was valid\n");
 }
 
 void
@@ -373,10 +372,7 @@ check_valid_pointer(const void *vaddr)
 const void *
 user_to_kernel_pointer(const void *vaddr)
 {
-    //printf("converting pointer\n");
-    //printf("checking if pointer is valid\n");
     check_valid_pointer(vaddr);
-    //printf("it was\n");
     void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
 
     if (!ptr) {
