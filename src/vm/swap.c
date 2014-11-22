@@ -43,13 +43,26 @@ void swap_init(void){
   lock_init(&swap_lock);
 }
 
-void block_write(struct page* page){
+
+void swap_write(struct page* page){
   /*get free swap slot*/
+  lock_acquire(&swap_lock);
   int i=0;
   for(;i<SWAP_SLOTS<i++){
     if(slots[i].is_full==false){
       int bit_index=slots[i].base_index;
-      
+      block_write(swap_device,PGSIZE,page);
+      slots[i].is_full=true;
+      bitmap_set_multiple(swap_bitmap,base_index,PGSIZE,true);
+      break;
     }
   }
+  lock_release(&swap_lock);
+}
+
+void swap_clear(int index){
+  lock_acquire(&swap_lock);
+  slots[index].is_full=false;
+  bitmap_set_multiple(swap_bitmap,slots[index].base_index,PGSIZE,false);
+  lock_release(&swap_lock);
 }
