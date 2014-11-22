@@ -1,0 +1,6 @@
+#include "vm/page.h"
+
+struct swap_slot{
+  int base_index;
+  //struct page page;
+}

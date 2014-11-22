@@ -8,6 +8,7 @@ struct page{
   void *addr;                     //user virtual address
   bool read_only;                 //read-only page?
   struct thread *thread;          //Owning thread
+  bool recent_access;
   /*accessed only in owning process context*/
   struct hash_elem hash_elem      //used for inserting page into page table
   
@@ -29,7 +30,7 @@ struct page{
 
 struct hash page_table;
 
-void page_hash(struct hash_elem *hash_elem, void* UNUSED);
+void page_hash(struct hash_elem *hash_e, void* UNUSED);
 bool page_less(struct hash_elem *hash_elem_a,
 	       struct hash_elem *hash_elem_b,
 	       void* UNUSED);

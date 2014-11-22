@@ -40,3 +40,33 @@ struct frame* get_free_frame(void){
   }
   PANIC("no empty frame gotta evict some frames yo");
 }
+
+/*want to implement 2 strikes eviction. Algorithm explained:
+  go over the frame list, check for each frame wether it is dirty, and recently
+  accessed.
+  If it is clean and not recently accessed->evict
+  if it is dirty and not recently accessed -> do nothing
+  if it is dirty and recently accessed -> set recently accessed to 0
+  if it is clean and recently accessed -> set recently accessed to 0
+*/
+void scan_and_evict(void){
+  lock_acquire(&scan_lock);
+  int i=0;
+  struct frame* cur_frame;
+  bool is_clean;
+  bool is_accessed;
+  for(;i<frame_cnt;i++){
+    cur_frame=frame[i];
+    is_clean=pagedir_is_dirty(frame->page->pd,frame->page->addr);
+    is_accessed=pagedir_is_accessed(frame->page->pd,frame->page->addr);
+    if(is_clean&&!is_accessed){
+      printf("evict this bitch\n");
+      /*remove references to the frame from any existing page table*/
+      scan_pt_and_remove(cur_frame);
+    }
+    else if(is_accessed){
+      pagedir_set_accessed(frame->page->pd,frame->page->addr);
+    }
+  }
+  lock_release(&scan_lock);
+}
