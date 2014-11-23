@@ -1,9 +1,12 @@
+#ifndef VM_PAGE_H
+#define VM_PAGE_H
+
 #include "threads/thread.h"
 #include "threads/palloc.h"
 #include "vm/frame.h"
-#include "vm/frame.c"
 #include "devices/block.h"
 #include <hash.h>
+#include <stdbool.h>
 
 struct page{
   void *addr;                     //user virtual address
@@ -11,7 +14,7 @@ struct page{
   struct thread *thread;          //Owning thread
   bool recent_access;
   /*accessed only in owning process context*/
-  struct hash_elem hash_elem      //used for inserting page into page table
+  struct hash_elem hash_elem;      //used for inserting page into page table
   
   /*to be only accessed for the owning process context with frame->frame_lock
     held.  Cleared only with with scan_lock and frame->frame_lock held.*/
@@ -25,16 +28,16 @@ struct page{
   bool private;                   //False to write back to file, true to
                                   //write back to swap.
   struct file *file;              //File
-  off_t file_offset;              //Offset infile
-  off_t file_bytes;               //bytes to read/write, 1...PGSIZE
+  //off_t file_offset;              //Offset infile
+  //off_t file_bytes;               //bytes to read/write, 1...PGSIZE
 };
 
 struct hash page_table;
 
-void page_hash(struct hash_elem *hash_e, void* UNUSED);
-bool page_less(struct hash_elem *hash_elem_a,
-	       struct hash_elem *hash_elem_b,
-	       void* UNUSED);
+unsigned page_hash(const struct hash_elem *hash_e, void* aux);
+bool page_less(const struct hash_elem *hash_elem_a,
+	       const struct hash_elem *hash_elem_b,
+	       void* aux);
 
 void init_pt(void);
 
@@ -43,4 +46,6 @@ struct page* page_for_addr(const void *addr);
 bool page_accessed_recently(struct page* p);
 void* get_free_page(enum palloc_flags flag);
 struct page* create_page(void* address);
-void* free_page(char* name);
+void free_page(void* addr);
+
+#endif

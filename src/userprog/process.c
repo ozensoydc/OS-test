@@ -44,8 +44,8 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  filename_check = palloc_get_page(0);
+  fn_copy = palloc_get_page (0);//get_free_page(0);//
+  filename_check = palloc_get_page(0);//do we not free this?get_free_page(0)//
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -61,6 +61,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR) {
+    //free_page(fn_copy);
     palloc_free_page (fn_copy); 
   } else {
       sema_down(cur_t->exec_sema);
@@ -168,7 +169,7 @@ start_process (void *file_name_)
   free(addresses);
 
 
-
+  //free_page(file_name);
   palloc_free_page (file_name);
 
   /* Start the user process by simulating a return from an
@@ -617,7 +618,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage =palloc_get_page (PAL_USER); //get_free_page(PAL_USER);//
       //uint8_t *kpage = get_frame(
       if (kpage == NULL)
         return false;
@@ -625,6 +626,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
+	  //free_page(kpage);
           palloc_free_page (kpage);
           return false; 
         }
@@ -633,6 +635,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
+	  //free_page(kpage);
           palloc_free_page (kpage);
           return false; 
         }
@@ -652,7 +655,7 @@ setup_stack (void **esp)
 {
   uint8_t *kpage;
   bool success = false;
-
+  
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   kpage = get_frame(((uint8_t *) PHYS_BASE) - PGSIZE, PAL_USER | PAL_ZERO);
   if (kpage != NULL) 

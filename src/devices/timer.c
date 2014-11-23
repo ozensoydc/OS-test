@@ -89,11 +89,19 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  //struct thread *t = thread_current();
+  //t->wakeup_time = timer_ticks()+ticks;
   int64_t start = timer_ticks ();
-
+  
   ASSERT (intr_get_level () == INTR_ON);
+  //intr_disable();
+  //list_insert_ordered(&wait_list, &t->timer_elem,
+  //		      compare_threads_by_wakeup_time,NULL);
+  //printf("list_insert happened\n");
+  //intr_enable();
+//sema_down(&t->timer_sema);
   while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+   thread_yield ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,8 +178,20 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  //struct thread* t = thread_current();
   ticks++;
   thread_tick ();
+  //while(!list_empty(&wait_list)){
+  //struct thread *t = list_entry(list_front(&wait_list),
+  //				  struct thread, timer_elem);
+    
+  //if(ticks<t->wakeup_time)
+  //  break;
+  //sema_up(&t->timer_sema);
+  //printf("going to pop_Front of wait_list\n");
+    //list_pop_front(&wait_list);
+    //printf("popped front wait_list\n");
+  //}
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

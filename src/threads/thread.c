@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <random.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "threads/flags.h"
 #include "threads/interrupt.h"
@@ -24,6 +25,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -94,7 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init(&wait_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -178,14 +180,14 @@ thread_create (const char *name, int priority,
   ASSERT (function != NULL);
 
   /* Allocate thread. */
-  t = get_free_page(PAL_ZERO);//palloc_get_page (PAL_ZERO);
+  t = palloc_get_page(PAL_ZERO);//get_free_page(PAL_ZERO)
   if (t == NULL)
     return TID_ERROR;
   
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  t->page = page_for_addr(tid);  /*new line*/
+  //t->page = page_for_addr(tid);  /*new line*/
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -498,6 +500,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+  sema_init(&t->timer_sema,1);
   t->priority = priority;
 
 #ifdef USERPROG
@@ -580,8 +583,8 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
-      free_page(prev);
-      //palloc_free_page (prev);
+      //free_page(prev);
+      palloc_free_page (prev);
     }
 }
 
@@ -725,6 +728,15 @@ allocate_tid (void)
 
   return tid;
 }
+
+bool compare_threads_by_wakeup_time(const struct list_elem *a,
+				    const struct list_elem *b,
+				    void* aux){
+  struct thread* cur_thread = list_entry(a, struct thread, timer_elem);
+  struct thread* comp_thread  = list_entry(a, struct thread, timer_elem);
+  return cur_thread->wakeup_time >= comp_thread->wakeup_time;
+}
+
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */

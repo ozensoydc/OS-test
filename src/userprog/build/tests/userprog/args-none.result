@@ -1,0 +1,6 @@
+FAIL
+Kernel panic in run: PANIC at ../../userprog/pagedir.c:104 in pagedir_set_page(): assertion `pg_ofs (kpage) == 0' failed.
+Call stack: 0xc002cfc5 0xc01080cca
+Translation of call stack:
+0xc002cfc5: debug_panic (.../../lib/kernel/debug.c:38)
+0xc01080cca: (unknown)

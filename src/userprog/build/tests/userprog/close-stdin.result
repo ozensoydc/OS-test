@@ -1,0 +1,20 @@
+FAIL
+Test output failed to match any acceptable form.
+
+Acceptable output:
+  (close-stdin) begin
+  (close-stdin) end
+  close-stdin: exit(0)
+Differences in `diff -u' format:
+  (close-stdin) begin
+- (close-stdin) end
+- close-stdin: exit(0)
++ close-stdin: exit(-1)
++ child is already dead, free loading semaphore
+Acceptable output:
+  (close-stdin) begin
+  close-stdin: exit(-1)
+Differences in `diff -u' format:
+  (close-stdin) begin
+  close-stdin: exit(-1)
++ child is already dead, free loading semaphore

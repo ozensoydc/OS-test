@@ -107,7 +107,7 @@ ide_init (void)
     {
       struct channel *c = &channels[chan_no];
       int dev_no;
-
+      
       /* Initialize channel. */
       snprintf (c->name, sizeof c->name, "ide%zu", chan_no);
       switch (chan_no) 
@@ -130,6 +130,7 @@ ide_init (void)
       /* Initialize devices. */
       for (dev_no = 0; dev_no < 2; dev_no++)
         {
+	  
           struct ata_disk *d = &c->devices[dev_no];
           snprintf (d->name, sizeof d->name,
                     "hd%c", 'a' + chan_no * 2 + dev_no); 
@@ -139,20 +140,22 @@ ide_init (void)
         }
 
       /* Register interrupt handler. */
+      printf("ide.c:itr_register_ext)\n");
       intr_register_ext (c->irq, interrupt_handler, c->name);
-
+      printf("register_ext done\n");
       /* Reset hardware. */
       reset_channel (c);
-
+      printf("reset_channel done\n");
       /* Distinguish ATA hard disks from other devices. */
       if (check_device_type (&c->devices[0]))
         check_device_type (&c->devices[1]);
-
+      printf("check_device_type done\n");
       /* Read hard disk identity information. */
       for (dev_no = 0; dev_no < 2; dev_no++)
         if (c->devices[dev_no].is_ata)
           identify_ata_device (&c->devices[dev_no]);
     }
+  printf("ide_init done\n");
 }
 
 /* Disk detection and identification. */

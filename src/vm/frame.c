@@ -2,27 +2,81 @@
 #include "threads/palloc.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/loader.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 #include "threads/synch.h"
 #include <hash.h>
-
+#include <stdbool.h>
+#include <stdio.h>
 static struct hash frames;
-static struct lock frames_lock;
-
+//static struct lock frames_lock;
 void frame_init(void);
 void* get_frame(void *upage, enum palloc_flags flags);
 bool free_frame(void *upage);
 unsigned frames_hash(const struct hash_elem *elem, void *aux);
-bool frame_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+bool frame_less(const struct hash_elem *a, const struct hash_elem *b, 
+		void *aux);
 struct frame* frame_lookup(void *addr);
 
 void 
 frame_init(void)
 {
-    hash_init(&frames, frames_hash, frame_less, NULL);
-    lock_init(&frames_lock);
+  //printf("in frame init\n");
+  hash_init(&frames, frames_hash, frame_less, NULL);
+  lock_init(&frames_lock);
+  //printf("exit frame init\n");
+  
+}
+
+int scan_table(void* upage, enum palloc_flags flags){
+  
+  
+  int num_emptied=0;
+  bool is_clean;
+  bool is_accessed;
+  struct hash_iterator i;
+  struct frame* cur_frame;
+  hash_first(&i,&frames);
+  struct page* cur_page;
+  printf("acquired frames_lock\n");
+  lock_acquire(&frames_lock);
+  while(hash_next(&i))
+    {
+      
+      cur_frame = hash_entry(hash_cur(&i), struct page, hash_elem);
+      cur_page = page_for_addr(cur_frame->upage);
+      is_clean = pagedir_is_dirty(cur_page->thread->pagedir,
+				  cur_frame->upage);
+      is_accessed = pagedir_is_accessed(cur_page->thread->pagedir,
+					cur_frame->upage);
+      if(is_clean && is_accessed){
+	//lock_release(&frames_lock);
+	free_frame(cur_page->frame);
+	free_page(cur_page->addr);
+	num_emptied++;
+	//PANIC("eviction_time");
+      }
+      else if(is_accessed){
+	//lock_release(&frames_lock);
+	pagedir_set_accessed(cur_page->thread->pagedir, cur_frame->upage,true);
+      }
+      
+    }
+  printf("released frames_lock\n");
+  lock_release(&frames_lock);
+  if(num_emptied>0){
+    
+    get_frame(upage, flags);
+  }
+  else{
+    
+    scan_table(upage,flags);
+  }
+  
+  return num_emptied;
 }
 
 void *
@@ -36,12 +90,16 @@ get_frame(void *upage, enum palloc_flags flags)
         f->addr = page;
         f->upage = upage;
         f->thread = thread_current();
-        lock_acquire(&frames_lock);
+        struct page* page=create_page(upage);
+	page->frame=f;
+	f->page=page;
+	lock_acquire(&frames_lock);
         hash_insert(&frames, &f->elem);
         lock_release(&frames_lock);
         return page;
     } else {
-        PANIC("NO FREE FRAMES");
+      printf("going to evict some frames\n");
+      scan_table(upage, flags);
     }
 }
 
@@ -51,14 +109,17 @@ free_frame(void *addr)
     struct frame *f = frame_lookup(addr);
 
     if (f != NULL) {
-        lock_acquire(&frames_lock);
-        hash_delete(&frames, &f->elem);
-        lock_release(&frames_lock);
-        palloc_free_page(f->addr);
-        free(f);
-        return true;
+      free_page(f->upage);
+      lock_acquire(&frames_lock);
+      hash_delete(&frames, &f->elem);
+      lock_release(&frames_lock);
+      
+      palloc_free_page(f->addr);
+      
+      free(f);
+      return true;
     } else {
-        return false;
+      return false;
     }
 }
 
@@ -173,5 +234,4 @@ static struct frame* frames /*array of frames aka frame temple basic*/
     }
   }
   lock_release(&scan_lock);
-}*/
-=======
+  }*/

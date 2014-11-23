@@ -1,0 +1,27 @@
+Copying tests/userprog/args-many to scratch partition...
+qemu -hda /tmp/UkT8HTn1IJ.dsk -m 4 -net none -nographic -monitor null
+PiLo hda1
+Loading..............
+Kernel command line: -q -f extract run 'args-many a b c d e f g h i j k l m n o p q r s t u v'
+Pintos booting with 4,096 kB RAM...
+383 pages available in kernel pool.
+383 pages available in user pool.
+in frame init
+exit frame init
+PCI: 8192 pages for 0:2.0 failed - may not work
+PCI Device 0:0.0 (8086,1237): Intel - 82441FX (PCI Host) IRQ 0
+PCI Device 0:1.0 (8086,7000): Intel - 82371SB_ISA (PCI-ISA Bridge) IRQ 0
+PCI Device 0:1.1 (8086,7010): Intel - 82371SB_IDE (Unknown Type) IRQ 0
+PCI Device 0:1.3 (8086,7113): Intel - 82371AB/EB/MB_ACPI (Unknown Type) IRQ 9
+PCI Device 0:2.0 (1013,b8): Cirrus Logic - CL-GD5446 (VGA Controller) IRQ 0
+Calibrating timer...  Kernel PANIC at ../../lib/kernel/list.c:282 in list_front(): assertion `!list_empty (list)' failed.
+Call stack: 0xc002cf69.
+The `backtrace' program can make call stacks useful.
+Read "Backtraces" in the "Debugging Tools" chapter
+of the Pintos documentation for more information.
+Timer: 1 ticks
+Thread: 0 idle ticks, 1 kernel ticks, 0 user ticks
+Console: 1006 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...

@@ -24,6 +24,8 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+
+//#include "vm/frame.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -31,6 +33,7 @@
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -39,8 +42,7 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
-#include "vm/page.h"
-#include "vm/frames.h"
+
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -105,8 +107,7 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
-  frame_init();
-  init_pt();
+  
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
@@ -115,7 +116,9 @@ main (void)
 
   /* Initialize interrupt handlers. */
   intr_init ();
+  printf("intr_init\n");
   timer_init ();
+  printf("timer_init\n");
   kbd_init ();
   pci_init ();
   input_init ();
@@ -123,22 +126,31 @@ main (void)
   exception_init ();
   syscall_init ();
   frame_init();
+  init_pt();
+  printf("init_pt and frame_init done\n");
 #endif
 
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
+  printf("thread_start\n");
   serial_init_queue ();
   timer_calibrate ();
   usb_init ();
 
 #ifdef FILESYS
   /* Initialize file system. */
+  printf("init filesys\n");
   usb_storage_init ();
+  printf("usb_storage_init done\n");
   ide_init ();
+  printf("ide_init done\n");
   locate_block_devices ();
+  printf("locate_block_devices done\n");
   filesys_init (format_filesys);
+  printf("filesys_init done\n");
 #endif
-
+  //frame_init();
+  //init_pt();
 
 
   printf ("Boot complete.\n");

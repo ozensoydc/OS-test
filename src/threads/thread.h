@@ -5,6 +5,10 @@
 #include <list.h>
 #include <stdint.h>
 #include "vm/page.h"
+#include "threads/synch.h"
+#include <stdbool.h>
+/*wait list*/
+struct list wait_list;
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -90,11 +94,15 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
+    
+    /*alarm clock */
+    int64_t wakeup_time;
+    struct list_elem timer_elem;
+    struct semaphore timer_sema;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     
-    struct page* page;                  /* the page current thread is assigned*/
+    //struct page* page;                  /* the page current thread is assigned*/
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -175,4 +183,7 @@ struct thread* get_thread_by_tid(tid_t tid);
 int thread_add_fd(struct file *file);
 struct file_handle* thread_get_fh(struct list *files, int fd);
 void thread_remove_file (struct file_handle *fh);
+bool compare_threads_by_wakeup_time(const struct list_elem *a,
+				    const struct list_elem *b,
+				    void* aux);
 #endif /* threads/thread.h */
