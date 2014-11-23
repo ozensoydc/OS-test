@@ -13,7 +13,7 @@
 #include "filesys/file.h"
 #include "devices/input.h"
 
-#define USER_VADDR_BOTTOM ((void *) 0x0804000)
+//#define USER_VADDR_BOTTOM ((void *) 0x0804000)
 
 static void syscall_handler (struct intr_frame *);
 const void *user_to_kernel_pointer(const void *vaddr);
