@@ -52,7 +52,7 @@ int scan_table(void* upage, enum palloc_flags flags){
 				  cur_frame->upage);
       is_accessed = pagedir_is_accessed(cur_page->thread->pagedir,
 					cur_frame->upage);
-      if(is_clean && is_accessed){
+      if(is_clean && !is_accessed){
 	//lock_release(&frames_lock);
 	free_frame(cur_page->frame);
 	free_page(cur_page->addr);
