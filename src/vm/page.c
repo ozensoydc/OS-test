@@ -26,6 +26,7 @@ bool page_less(struct hash_elem* hash_elem_a,
 }
 
 static void scan_pages_and_destroy(struct frame* fr){
+  printf("In scan_pages_and_destroy\n");
   struct hash_iterator i;
   lock_acquire(&hash_lock);
   struct page* cur_page;
@@ -39,20 +40,22 @@ static void scan_pages_and_destroy(struct frame* fr){
       lock_release(&fr->frame_lock);
       /*remove from supp pt*/
       
-      hash_destroy(&page_table,hash_e);
+      hash_destroy(&page_table,hash_elem);
       /*destroy page completely*/
-      pagedir_destroy(cur_page->thread->pd);
+      //pagedir_destroy(cur_page->thread->pd);
       /*move page to swap*/
       
       //free(cur_page);
     }
   }
+  printf("exitting scan_pages_and_destroy\n");
   lock_release(&hash_lock);
 }
 
 /* returns true if page with given address is in page table*/
 
 bool page_in(void* fault_addr){
+  printf("in page_in\n");
   struct hash_iterator i;
   lock_acquire(&hash_lock);
   struct page cur_page;
@@ -61,9 +64,11 @@ bool page_in(void* fault_addr){
     cur_page = hash_entry(cur_elem, struct page, hash_elem);
     if(cur_page->addr == fault_addr){
       lock_release(&hash_lock);
+      printf("page found\n");
       return true;
     }
   }
+  printf("no page found\n");
   return false;
 }
 
@@ -74,6 +79,7 @@ struct page* page_for_addr(const void *addr){
     printf("page is not in table\n");
     return NULL;
     }*/
+  printf("in page_for_addr/n");
   struct hash_iterator i;
   lock_acquire(&hash_lock);
   struct page cur_page;
@@ -81,10 +87,12 @@ struct page* page_for_addr(const void *addr){
   while((cur_elem=hash_next(&i))!=NULL){
     cur_page=hash_entry(cur_elem,struct page, hash_elem);
     if(cur_page->addr == addr){
+      printf("successfully return from page_for_addr\n");
       return hash_entry(cur_elem, struct page, hash_elem);
     }
   }
   printf("page not fount\n");
+  
   return NULL;
 }
 
@@ -94,7 +102,79 @@ bool page_accessed_recently(struct page* p){
 
 
 
+/* get a free page using paloc_get_page, andget a free frame from
+   frame table */
 
+void* get_free_page(enum palloc_flags flag){
+  void* page_vaddr=(void*)malloc(sizeof(void*));
+  page_vaddr=palloc_get_page(flag);
+  struct page* page=create_page(page_vaddr);
+  hash_insert(&page_table, *page->hash_elem);
+  return page_vaddr;
+}
+
+/*create page for vaddr*/
+
+struct page* create_page(void* address){
+  struct page* page=(struct page*)malloc(sizeof(struct page));
+  if(page==NULL){
+    PANIC("not enough space to allocate new page\n");
+  }
+  page->addr=address;
+  page->thread=thread_current();
+  page->recent_access=1;
+  struct frame* fr=get_free_frame();
+  fr->page=page;
+  return page;
+}
+
+void free_page(char* name){
+  void* vaddr=(void*) page_name;
+  struct hash_iterator i;
+  lock_acquire(&hash_lock);
+  struct page cur_page;
+  struct hash_elem* cur_elem;
+  while((cur_elem=hash_next(&i))!=NULL){
+    cur_page = hash_entry(cur_elem, struct page, hash_elem);
+    if(cur_page->addr == vaddr){
+      hash_delete(&page_table,hash_elem);
+      lock_release(&hash_lock);
+      printf("found page\n");
+      palloc_free_page(cur_page->addr);
+      cur_page->frame->page==NULL;
+      //pagedir_destroy(cur_page->thread->pd);
+      free(cur_page);
+      return;
+    }
+    
+    printf("page to be freed not found\n");
+}
+
+  /*
+void destroy_pd(char* name){
+  void* vaddr=(void*) page_name;
+  struct hash_iterator i;
+  lock_acquire(&hash_lock);
+  struct page cur_page;
+  struct hash_elem* cur_elem;
+  while((cur_elem=hash_next(&i))!=NULL){
+    cur_page = hash_entry(cur_elem, struct page, hash_elem);
+    if(cur_page->addr == vaddr){
+      hash_delete(&page_table,hash_elem);
+      lock_release(&hash_lock);
+      printf("found page\n");
+      palloc_free_page(cur_page->addr);
+      cur_page->frame->page==NULL;
+      pagedir_destroy(cur_page->thread->pd);
+      free(cur_page);
+      return;
+    }
+    
+    printf("page to be freed not found\n");
+}
+
+
+  */
 /*
 static void page_destroy(struct hash_elem *hash_e, void* UNUSED){
   hash_destroy(&page_table,hash_e);

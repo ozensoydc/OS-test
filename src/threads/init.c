@@ -38,6 +38,8 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
+#include "vm/page.h"
+#include "vm/frames.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -102,7 +104,8 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
-
+  frame_init();
+  init_pt();
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
@@ -133,6 +136,8 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+
 
   printf ("Boot complete.\n");
   

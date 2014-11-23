@@ -5,7 +5,7 @@
 
 
 static struct frame* frames /*array of frames aka frame temple basic*/
-static size_t frame_cnt /*number of frames*/
+static int frame_cnt /*number of frames*/
 //static struct lock scan_lock;
 static size_t hand; /*no idea what this is*/
 
@@ -32,10 +32,11 @@ struct frame* get_free_frame(void){
   int i;
   struct frame* ret_frame;
   for(i=0;i<frame_cnt;i++){
-    ret_frame=frames[i];
-    if(ret_frame->page == NULL){
-      /*here set frame->page to page*/
-      return ret_frame;
+    //ret_frame=frames[i];
+    if(frames[i].page == NULL){
+      //ret_frame->page
+	
+      return &frames[i];
     }
   }
   PANIC("no empty frame gotta evict some frames yo");

@@ -1,4 +1,5 @@
 #include "threads/thread.h"
+#include "threads/palloc.h"
 #include "vm/frame.h"
 #include "vm/frame.c"
 #include "devices/block.h"
@@ -34,3 +35,12 @@ void page_hash(struct hash_elem *hash_e, void* UNUSED);
 bool page_less(struct hash_elem *hash_elem_a,
 	       struct hash_elem *hash_elem_b,
 	       void* UNUSED);
+
+void init_pt(void);
+
+bool page_in(void* fault_addr);
+struct page* page_for_addr(const void *addr);
+bool page_accessed_recently(struct page* p);
+void* get_free_page(enum palloc_flags flag);
+struct page* create_page(void* address);
+void* free_page(char* name);
