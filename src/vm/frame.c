@@ -1,17 +1,120 @@
+#include "threads/synch.h"
+#include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
+#include "userprog/syscall.h"
+#include "vm/frame.h"
+#include "threads/synch.h"
+#include <hash.h>
+
+static struct hash frames;
+static struct lock frames_lock;
+
+void frame_init(void);
+void* get_frame(void *upage, enum palloc_flags flags);
+bool free_frame(void *upage);
+unsigned frames_hash(const struct hash_elem *elem, void *aux);
+bool frame_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+struct frame* frame_lookup(void *addr);
+
+void 
+frame_init(void)
+{
+    hash_init(&frames, frames_hash, frame_less, NULL);
+    lock_init(&frames_lock);
+}
+
+void *
+get_frame(void *upage, enum palloc_flags flags)
+{
+    void *page = palloc_get_page(flags);
+
+    // Adds frame to table if page is available
+    if (page != NULL) {
+        struct frame *f = (struct frame *) malloc(sizeof(struct frame));
+        f->addr = page;
+        f->upage = upage;
+        f->thread = thread_current();
+        lock_acquire(&frames_lock);
+        hash_insert(&frames, &f->elem);
+        lock_release(&frames_lock);
+        return page;
+    } else {
+        PANIC("NO FREE FRAMES");
+    }
+}
+
+bool
+free_frame(void *addr)
+{
+    struct frame *f = frame_lookup(addr);
+
+    if (f != NULL) {
+        lock_acquire(&frames_lock);
+        hash_delete(&frames, &f->elem);
+        lock_release(&frames_lock);
+        palloc_free_page(f->addr);
+        free(f);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+struct frame*
+frame_lookup(void *addr)
+{
+    struct frame f;
+    struct hash_elem *e;
+
+    f.addr = addr;
+    e = hash_find(&frames, &f.elem);
+
+    if (e != NULL) {
+        return hash_entry(e, struct frame, elem);
+    } else {
+        return NULL;
+    }
+}
+    
+
+
+// Order frames by physical address
+bool
+frame_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
+{
+    struct frame *a_frame = hash_entry(a, struct frame, elem);
+    struct frame *b_frame = hash_entry(b, struct frame, elem);
+
+    return (a_frame->addr) < (b_frame->addr);
+}
+
+// We hash the physical address since it must be
+// unique
+unsigned 
+frames_hash(const struct hash_elem *elem, void *aux UNUSED)
+{
+    struct frame *f = hash_entry(elem, struct frame, elem);
+
+    return hash_int((unsigned) f->addr);
+}
+
+	/*#include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/loader.h"
 #include "vm/frame.h"
 
 
 static struct frame* frames /*array of frames aka frame temple basic*/
-static int frame_cnt /*number of frames*/
+	//static int frame_cnt /*number of frames*/
 //static struct lock scan_lock;
-static size_t hand; /*no idea what this is*/
+	//static size_t hand; /*no idea what this is*/
 
 
 /*maps user memory to frames*/
-void frame_init(void){
+	/*void frame_init(void){
   void* base;
   lock_init(&scan_lock);
   frames = malloc(sizeof *frames * init_ram_pages); 
@@ -28,7 +131,7 @@ void frame_init(void){
 
 
 /*make this function take a page as an argument*/
-struct frame* get_free_frame(void){
+	/*struct frame* get_free_frame(void){
   int i;
   struct frame* ret_frame;
   for(i=0;i<frame_cnt;i++){
@@ -50,7 +153,7 @@ struct frame* get_free_frame(void){
   if it is dirty and recently accessed -> set recently accessed to 0
   if it is clean and recently accessed -> set recently accessed to 0
 */
-void scan_and_evict(void){
+	/*void scan_and_evict(void){
   lock_acquire(&scan_lock);
   int i=0;
   struct frame* cur_frame;
@@ -63,11 +166,12 @@ void scan_and_evict(void){
     if(is_clean&&!is_accessed){
       printf("evict this bitch\n");
       /*remove references to the frame from any existing page table*/
-      scan_pt_and_remove(cur_frame);
+/* scan_pt_and_remove(cur_frame);
     }
     else if(is_accessed){
       pagedir_set_accessed(frame->page->pd,frame->page->addr);
     }
   }
   lock_release(&scan_lock);
-}
+}*/
+=======
