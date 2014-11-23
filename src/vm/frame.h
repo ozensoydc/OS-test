@@ -2,6 +2,7 @@
 #define FRAME_H
 
 #include <hash.h>
+#include "threads/palloc.h"
 
 struct frame {
     void *addr; // Physical address of page

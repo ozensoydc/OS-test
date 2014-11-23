@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <hash.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -110,6 +111,10 @@ struct thread
     struct semaphore *exec_sema;
 
     int ret_status;
+
+    // Store all supplemental page tables here and load 
+    // them into page directory when needed
+    struct hash sup_page_tables;
 
 #endif
 
