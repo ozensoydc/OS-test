@@ -56,39 +56,43 @@ load_page(struct sup_page_table *spt)
         return false;
     }
     return true;
-}
     
+}
+
 struct sup_page_table*
 get_sup_page_table(uint8_t *upage)
 {
-    struct sup_page_table spt;
-    struct hash_elem *e;
-    struct hash *sup_page_tables = &thread_current()->sup_page_tables;
-
-    spt.upage = pg_round_down(upage);
-    e = hash_find(sup_page_tables, &spt.elem);
-
-    if (e != NULL) {
-        return hash_entry(e, struct sup_page_table, elem);
-    } else {
-        return NULL;
-    }
+  struct sup_page_table spt;
+  struct hash_elem *e;
+  struct hash *sup_page_tables = &thread_current()->sup_page_tables;
+  
+  spt.upage = pg_round_down(upage);
+  e = hash_find(sup_page_tables, &spt.elem);
+  
+  if (e != NULL) {
+    return hash_entry(e, struct sup_page_table, elem);
+  } else {
+    return NULL;
+  }
 }
 
 bool 
 sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
 {
-    struct sup_page_table *a_table = hash_entry(a, struct sup_page_table, elem);
-    struct sup_page_table *b_table = hash_entry(b, struct sup_page_table, elem);
-
-    return (a_table->upage) < (b_table->upage);
+  struct sup_page_table *a_table = hash_entry(a, struct sup_page_table, elem);
+  struct sup_page_table *b_table = hash_entry(b, struct sup_page_table, elem);
+  
+  return (a_table->upage) < (b_table->upage);
 }
 
 unsigned
 sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
 {
-    struct sup_page_table *spt = hash_entry(elem, struct sup_page_table, elem);
-
-    return hash_int((unsigned) spt->upage);
+  struct sup_page_table *spt = hash_entry(elem, struct sup_page_table, elem);
+  
+  return hash_int((unsigned) spt->upage);
 }
+
+
+
 

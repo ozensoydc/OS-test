@@ -7,6 +7,7 @@
 #include "vm/page.h"
 #include <hash.h>
 
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,7 +96,7 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     
-    struct page* page;                  /* the page current thread is assigned*/
+    //struct page* page;                  /* the page current thread is assigned*/
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

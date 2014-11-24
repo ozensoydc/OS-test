@@ -180,14 +180,14 @@ thread_create (const char *name, int priority,
   ASSERT (function != NULL);
 
   /* Allocate thread. */
-  t = get_free_page(PAL_ZERO);//palloc_get_page (PAL_ZERO);
+  t = palloc_get_page (PAL_ZERO);//get_free_page(PAL_ZERO);//
   if (t == NULL)
     return TID_ERROR;
   
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  t->page = page_for_addr(tid);  /*new line*/
+  //t->page = page_for_addr(tid);  /*new line*/
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -583,8 +583,8 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
-      free_page(prev);
-      //palloc_free_page (prev);
+      //free_page(prev);
+      palloc_free_page (prev);
     }
 }
 
