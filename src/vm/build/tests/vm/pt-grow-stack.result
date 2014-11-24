@@ -1,2 +1,98 @@
 FAIL
-run: TIMEOUT after 61 seconds of wall-clock time - load average: 1.43, 0.80, 0.61
+Test output failed to match any acceptable form.
+
+Acceptable output:
+  (pt-grow-stack) begin
+  (pt-grow-stack) cksum: 3424492700
+  (pt-grow-stack) end
+Differences in `diff -u' format:
++ inside an exception
++ inside an exception
++ inside an exception
++ inside an exception
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ writing
+  (pt-grow-stack) begin
++ inside an exception
++ growing stack
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ writing
+  (pt-grow-stack) cksum: 3424492700
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ was valid!
++ writing
+  (pt-grow-stack) end
+
+(Process exit codes are excluded for matching purposes.)

@@ -85,7 +85,6 @@ kill (struct intr_frame *f)
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
 
-    //printf("killing some process\n\n");
     thread_current()->ret_status = -1;
   switch (f->cs)
     {
@@ -128,6 +127,7 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f) 
 {
+    printf("inside an exception\n");
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
@@ -155,13 +155,19 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
 
+  bool success = false;
   if (not_present && is_user_vaddr(fault_addr)) {
       struct sup_page_table *spt = get_sup_page_table(fault_addr);
       if (spt) {
           load_page(spt);
+          success = true;
+      } else if (fault_addr >= f->esp - 32) {
+          success = increase_stack(fault_addr);
       }
-  } else {
+  } 
+  
   // only do if not a user address
+  if (!success) {
     f->eip = (void (*) (void)) f->eax;
     f->eax = 0xFFFFFFFF;
 
