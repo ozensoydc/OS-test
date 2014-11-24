@@ -2,7 +2,7 @@
 #define PAGE_H
 
 #include <filesys/off_t.h>
-
+#include <hash.h>
 struct sup_page_table {
     // should I include the thread?
     struct file *file;
@@ -20,7 +20,7 @@ bool load_page(struct sup_page_table *spt);
 struct sup_page_table* get_sup_page_table(uint8_t *upage);
 bool sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 unsigned sup_page_table_hash(const struct hash_elem *elem, void *aux);
-
+//struct sup_page_table* page_from_addr(uint8_t *upage);
 
 #endif
 

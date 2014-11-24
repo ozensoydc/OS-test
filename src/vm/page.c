@@ -92,3 +92,4 @@ sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
     return hash_int((unsigned) spt->upage);
 }
 
+
