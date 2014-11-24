@@ -36,6 +36,16 @@ create_sup_page_table(struct file *file, off_t ofs, uint8_t *upage,
     }
 }
 
+bool create_sup_page_tables(struct file *file, off_t ofs, off_t bytes,
+			   uint8_t *upage, uint32_t read_bytes, 
+			    uint32_t zero_bytes, bool writable,int num){
+  struct  thread *t = thread_current();
+  struct sup_page_table *tables=
+    (struct sup_page_table*)malloc(sizeof(struct sup_page_table)*num);
+  
+  return true;;
+}
+
 bool
 load_page(struct sup_page_table *spt)
 {
@@ -83,7 +93,7 @@ sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *
 
     return (a_table->upage) < (b_table->upage);
 }
-
+/*
 unsigned
 sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
 {
@@ -92,4 +102,9 @@ sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
     return hash_int((unsigned) spt->upage);
 }
 
-
+struct sup_page_table* spt_lookup(void* addr){
+  struct sup_page_table p;
+  struct thread* t=thread_current();
+  p.addr=
+}
+*/

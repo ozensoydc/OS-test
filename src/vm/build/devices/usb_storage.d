@@ -5,7 +5,7 @@ devices/usb_storage.o: ../../devices/usb_storage.c ../../lib/stdlib.h \
  ../../lib/endian.h ../../threads/malloc.h ../../threads/palloc.h \
  ../../threads/thread.h ../../lib/kernel/list.h ../../vm/page.h \
  ../../filesys/off_t.h ../../lib/kernel/hash.h ../../lib/kernel/list.h \
- ../../devices/timer.h ../../lib/round.h ../../threads/synch.h \
- ../../threads/pte.h ../../threads/vaddr.h ../../threads/loader.h \
- ../../devices/usb.h ../../devices/block.h ../../lib/inttypes.h \
- ../../devices/partition.h
+ ../../filesys/file.h ../../devices/timer.h ../../lib/round.h \
+ ../../threads/synch.h ../../threads/pte.h ../../threads/vaddr.h \
+ ../../threads/loader.h ../../devices/usb.h ../../devices/block.h \
+ ../../lib/inttypes.h ../../devices/partition.h

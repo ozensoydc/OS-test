@@ -5,4 +5,4 @@ userprog/exception.o: ../../userprog/exception.c \
  ../../userprog/gdt.h ../../threads/loader.h ../../threads/interrupt.h \
  ../../threads/thread.h ../../lib/kernel/list.h ../../vm/page.h \
  ../../filesys/off_t.h ../../lib/kernel/hash.h ../../lib/kernel/list.h \
- ../../userprog/syscall.h ../../threads/vaddr.h
+ ../../filesys/file.h ../../userprog/syscall.h ../../threads/vaddr.h

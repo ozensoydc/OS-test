@@ -16,7 +16,10 @@ struct frame {
 void frame_init(void);
 void* get_frame(void *upage, enum palloc_flags flags);
 bool free_frame(void *addr);
-
+void* get_multiple_frames(void* upage, enum palloc_flags flags, int num_frames,
+			 struct file* file);
+struct frame* lookup_frame(void* addr);
+struct frame* frame_lookup(void *addr);
 #endif
 
 /*
