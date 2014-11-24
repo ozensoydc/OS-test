@@ -1,182 +1,94 @@
-#include "vm/page.h"
 #include <hash.h>
-#include "threads/thread.h"
-#include "vm/frames.h"
-#include "threads/synch.h"
+#include "vm/page.h"
+#include <threads/thread.h>
+#include "threads/malloc.h"
+#include "filesys/off_t.h"
+#include "filesys/file.h"
+#include <string.h>
+#include "userprog/process.h"
+#include "vm/frame.h"
+#include "threads/palloc.h"
+#include "userprog/process.h"
+#include <stdio.h>
+#include "threads/vaddr.h"
 
-static struct lock hash_lock; /*writes to page table should be locked while 
-				another read or write is happening*/
 
-void init_pt(void){
-  hash_init(&page_table, page_hash, page_less,NULL);
-  lock_init(&hash_lock);
-}
+bool
+create_sup_page_table(struct file *file, off_t ofs, uint8_t *upage, 
+        uint32_t read_bytes, uint32_t zero_bytes, bool writable)
+{
+    struct thread *t = thread_current();
+    struct sup_page_table *spt = (struct sup_page_table *) malloc(sizeof(struct sup_page_table));
 
-unsigned page_hash(struct hash_elem *hash_e, void* UNUSED){
-  struct page *p = hash_entry(hash_e,struct page,hash_elem);
-  return hash_bytes(&p->addr, sizeof p->addr);
-}
+    spt->file = file;
+    spt->ofs = ofs;
+    spt->upage = upage;
+    spt->read_bytes = read_bytes;
+    spt->zero_bytes = zero_bytes;
+    spt->writable = writable;
 
-bool page_less(struct hash_elem* hash_elem_a,
-	       struct hash_elem* hash_elem_b,
-	       void* UNUSED){
-  struct page *a = hash_entry(hash_elem_a,struct page,hash_elem);
-  struct page *b = hash_entry(hash_elem_b,struct page,hash_elem);
-  return a->addr < b->addr;
-}
-
-static void scan_pages_and_destroy(struct frame* fr){
-  printf("In scan_pages_and_destroy\n");
-  struct hash_iterator i;
-  lock_acquire(&hash_lock);
-  struct page* cur_page;
-  struct hash_elem* cur_elem;
-  while((cur_elem=hash_next(&i))!=NULL){
-    cur_page = hash_entry(cur_elem, struct page, hash_elem);
-    if(cur_page->frame==fr){
-      /*destroy this page*/
-      lock_acquire(&fr->frame_lock);
-      cur_page->frame == NULL;
-      lock_release(&fr->frame_lock);
-      /*remove from supp pt*/
-      
-      hash_destroy(&page_table,hash_elem);
-      /*destroy page completely*/
-      //pagedir_destroy(cur_page->thread->pd);
-      /*move page to swap*/
-      
-      //free(cur_page);
+    // does this need to be protected
+    if (spt != NULL) {
+        hash_insert(&t->sup_page_tables, &spt->elem);
+        return true;
+    } else {
+        return false;
     }
-  }
-  printf("exitting scan_pages_and_destroy\n");
-  lock_release(&hash_lock);
 }
 
-/* returns true if page with given address is in page table*/
+bool
+load_page(struct sup_page_table *spt)
+{
+    uint8_t *kpage = get_frame(spt->upage, PAL_USER);
+    if (kpage == NULL)
+        return false;
 
-bool page_in(void* fault_addr){
-  printf("in page_in\n");
-  struct hash_iterator i;
-  lock_acquire(&hash_lock);
-  struct page cur_page;
-  struct hash_elem* cur_elem;
-  while((cur_elem=hash_next(&i))!=NULL){
-    cur_page = hash_entry(cur_elem, struct page, hash_elem);
-    if(cur_page->addr == fault_addr){
-      lock_release(&hash_lock);
-      printf("page found\n");
-      return true;
+    // Lock filesystem?
+    if (file_read_at(spt->file, kpage, spt->read_bytes, spt->ofs) != 
+            (int) spt->read_bytes) {
+        free_frame(kpage);
+        return false;
     }
-  }
-  printf("no page found\n");
-  return false;
-}
+    memset(kpage + spt->read_bytes, 0, spt->zero_bytes);
 
-/*returns the page to the given address*/
-
-struct page* page_for_addr(const void *addr){
-  /*if(!page_in(addr)){
-    printf("page is not in table\n");
-    return NULL;
-    }*/
-  printf("in page_for_addr/n");
-  struct hash_iterator i;
-  lock_acquire(&hash_lock);
-  struct page cur_page;
-  struct hash_elem* cur_elem;
-  while((cur_elem=hash_next(&i))!=NULL){
-    cur_page=hash_entry(cur_elem,struct page, hash_elem);
-    if(cur_page->addr == addr){
-      printf("successfully return from page_for_addr\n");
-      return hash_entry(cur_elem, struct page, hash_elem);
+    if (!install_page(spt->upage, kpage, spt->writable)) {
+        free_frame(kpage);
+        return false;
     }
-  }
-  printf("page not fount\n");
-  
-  return NULL;
+    return true;
 }
-
-bool page_accessed_recently(struct page* p){
-  return pagedir_is_accessed(p->thread->pd);
-}
-
-
-
-/* get a free page using paloc_get_page, andget a free frame from
-   frame table */
-
-void* get_free_page(enum palloc_flags flag){
-  void* page_vaddr=(void*)malloc(sizeof(void*));
-  page_vaddr=palloc_get_page(flag);
-  struct page* page=create_page(page_vaddr);
-  hash_insert(&page_table, *page->hash_elem);
-  return page_vaddr;
-}
-
-/*create page for vaddr*/
-
-struct page* create_page(void* address){
-  struct page* page=(struct page*)malloc(sizeof(struct page));
-  if(page==NULL){
-    PANIC("not enough space to allocate new page\n");
-  }
-  page->addr=address;
-  page->thread=thread_current();
-  page->recent_access=1;
-  struct frame* fr=get_free_frame();
-  fr->page=page;
-  return page;
-}
-
-void free_page(char* name){
-  void* vaddr=(void*) page_name;
-  struct hash_iterator i;
-  lock_acquire(&hash_lock);
-  struct page cur_page;
-  struct hash_elem* cur_elem;
-  while((cur_elem=hash_next(&i))!=NULL){
-    cur_page = hash_entry(cur_elem, struct page, hash_elem);
-    if(cur_page->addr == vaddr){
-      hash_delete(&page_table,hash_elem);
-      lock_release(&hash_lock);
-      printf("found page\n");
-      palloc_free_page(cur_page->addr);
-      cur_page->frame->page==NULL;
-      //pagedir_destroy(cur_page->thread->pd);
-      free(cur_page);
-      return;
-    }
     
-    printf("page to be freed not found\n");
-}
+struct sup_page_table*
+get_sup_page_table(uint8_t *upage)
+{
+    struct sup_page_table spt;
+    struct hash_elem *e;
+    struct hash *sup_page_tables = &thread_current()->sup_page_tables;
 
-  /*
-void destroy_pd(char* name){
-  void* vaddr=(void*) page_name;
-  struct hash_iterator i;
-  lock_acquire(&hash_lock);
-  struct page cur_page;
-  struct hash_elem* cur_elem;
-  while((cur_elem=hash_next(&i))!=NULL){
-    cur_page = hash_entry(cur_elem, struct page, hash_elem);
-    if(cur_page->addr == vaddr){
-      hash_delete(&page_table,hash_elem);
-      lock_release(&hash_lock);
-      printf("found page\n");
-      palloc_free_page(cur_page->addr);
-      cur_page->frame->page==NULL;
-      pagedir_destroy(cur_page->thread->pd);
-      free(cur_page);
-      return;
+    spt.upage = pg_round_down(upage);
+    e = hash_find(sup_page_tables, &spt.elem);
+
+    if (e != NULL) {
+        return hash_entry(e, struct sup_page_table, elem);
+    } else {
+        return NULL;
     }
-    
-    printf("page to be freed not found\n");
 }
 
+bool 
+sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
+{
+    struct sup_page_table *a_table = hash_entry(a, struct sup_page_table, elem);
+    struct sup_page_table *b_table = hash_entry(b, struct sup_page_table, elem);
 
-  */
-/*
-static void page_destroy(struct hash_elem *hash_e, void* UNUSED){
-  hash_destroy(&page_table,hash_e);
+    return (a_table->upage) < (b_table->upage);
 }
-*/
+
+unsigned
+sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
+{
+    struct sup_page_table *spt = hash_entry(elem, struct sup_page_table, elem);
+
+    return hash_int((unsigned) spt->upage);
+}
+

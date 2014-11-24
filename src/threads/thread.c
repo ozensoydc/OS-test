@@ -12,6 +12,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include <hash.h>
+#include "vm/page.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -505,6 +507,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->child_stati);
   list_init(&t->files);
   t->next_fd = 3;
+  //hash_init(&t->sup_page_tables, sup_page_table_hash, sup_page_table_less, NULL);
 #endif
 
   t->magic = THREAD_MAGIC;
