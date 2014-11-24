@@ -40,7 +40,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #include "vm/page.h"
-#include "vm/frames.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -106,7 +105,7 @@ main (void)
   malloc_init ();
   paging_init ();
   frame_init();
-  init_pt();
+  
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();

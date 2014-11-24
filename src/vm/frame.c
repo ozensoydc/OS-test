@@ -7,10 +7,12 @@
 #include "vm/frame.h"
 #include "threads/synch.h"
 #include <hash.h>
+#include <stdbool.h>
 
 static struct hash frames;
 static struct lock frames_lock;
 
+void scan_table(void* upage, enum palloc_flags flags,bool evict_dirty);
 void frame_init(void);
 void* get_frame(void *upage, enum palloc_flags flags);
 bool free_frame(void *upage);
@@ -41,7 +43,8 @@ get_frame(void *upage, enum palloc_flags flags)
         lock_release(&frames_lock);
         return page;
     } else {
-        PANIC("NO FREE FRAMES");
+      //PANIC("no frames left\n");
+      scan_table(upage,flags,false);
     }
 }
 
@@ -101,77 +104,42 @@ frames_hash(const struct hash_elem *elem, void *aux UNUSED)
     return hash_int((unsigned) f->addr);
 }
 
-	/*#include "threads/thread.h"
-#include "threads/synch.h"
-#include "threads/loader.h"
-#include "vm/frame.h"
 
-
-static struct frame* frames /*array of frames aka frame temple basic*/
-	//static int frame_cnt /*number of frames*/
-//static struct lock scan_lock;
-	//static size_t hand; /*no idea what this is*/
-
-
-/*maps user memory to frames*/
-	/*void frame_init(void){
-  void* base;
-  lock_init(&scan_lock);
-  frames = malloc(sizeof *frames * init_ram_pages); 
-  if(frames == NULL){
-    PANIC("out of memory allocating page frames");
-  }
-  while((base = palloc_get_page(PAL_USER))!= NULL){
-    struct frame *f = &frames[frame_cnt++];
-    lock_init(&f->lock);
-    f->base = base;
-    f->page = NULL;
-  }
-}
-
-
-/*make this function take a page as an argument*/
-	/*struct frame* get_free_frame(void){
-  int i;
-  struct frame* ret_frame;
-  for(i=0;i<frame_cnt;i++){
-    //ret_frame=frames[i];
-    if(frames[i].page == NULL){
-      //ret_frame->page
-	
-      return &frames[i];
-    }
-  }
-  PANIC("no empty frame gotta evict some frames yo");
-}
-
-/*want to implement 2 strikes eviction. Algorithm explained:
-  go over the frame list, check for each frame wether it is dirty, and recently
-  accessed.
-  If it is clean and not recently accessed->evict
-  if it is dirty and not recently accessed -> do nothing
-  if it is dirty and recently accessed -> set recently accessed to 0
-  if it is clean and recently accessed -> set recently accessed to 0
-*/
-	/*void scan_and_evict(void){
-  lock_acquire(&scan_lock);
-  int i=0;
-  struct frame* cur_frame;
+void scan_table(void* upage, enum palloc_flags flags,bool evict_dirty){
+  printf("in scan table\n");
+  int num_emptied = 0;
+  int num_dirty_evicted=0;
   bool is_clean;
   bool is_accessed;
-  for(;i<frame_cnt;i++){
-    cur_frame=frame[i];
-    is_clean=pagedir_is_dirty(frame->page->pd,frame->page->addr);
-    is_accessed=pagedir_is_accessed(frame->page->pd,frame->page->addr);
-    if(is_clean&&!is_accessed){
-      printf("evict this bitch\n");
-      /*remove references to the frame from any existing page table*/
-/* scan_pt_and_remove(cur_frame);
+  struct hash_iterator i;
+  struct frame* cur_frame;
+  hash_first(&i,&frames);
+  lock_acquire(&frames_lock);
+  while(hash_next(&i)){
+    cur_frame = hash_entry(hash_cur(&i), struct frame, elem);
+    is_clean = pagedir_is_dirty(cur_frame->thread->pagedir,
+				cur_frame->upage);
+    is_accessed = pagedir_is_dirty(cur_frame->thread->pagedir,
+				   cur_frame->upage);
+    if(is_clean && !is_accessed){
+      pagedir_clear_page(cur_frame->thread->pagedir,cur_frame->upage);
+      free_frame(cur_frame->upage);
+    }
+    else if(!is_clean && !is_accessed && (num_emptied == 0) && evict_dirty){
+      pagedir_clear_page(cur_frame->thread->pagedir,cur_frame->upage);
+      free_frame(cur_frame->upage);
+      printf("need to evict to swap\n");
     }
     else if(is_accessed){
-      pagedir_set_accessed(frame->page->pd,frame->page->addr);
+      pagedir_set_accessed(cur_frame->thread->pagedir, cur_frame->upage,false);
     }
   }
-  lock_release(&scan_lock);
-}*/
-=======
+  lock_release(&frames_lock);
+  if(num_emptied>0 || num_dirty_evicted>0){
+    get_frame(upage,flags);
+  }
+  else{
+    scan_table(upage,flags,true);
+  }
+  
+}
