@@ -58,6 +58,43 @@ load_page(struct sup_page_table *spt)
     return true;
 }
     
+bool
+increase_stack(uint8_t *upage)
+{
+    uint8_t *page = pg_round_down(upage);
+    struct sup_page_table *spt;
+
+    if ((size_t) ((uint8_t *) PHYS_BASE - page) > 1048576) {
+        return false;
+    }
+
+    bool c = create_sup_page_table(NULL, NULL, page,
+                                    NULL, NULL, NULL); // add type to function
+
+    if (c) {
+        spt = get_sup_page_table(page);
+    } else {
+        return false;
+    }
+
+    spt->type = SWAP_;
+    uint8_t *kpage = get_frame(upage, PAL_USER | PAL_ZERO);
+    if (kpage != NULL) {
+        bool success = install_page(page, kpage, true);
+        if (success) {
+            return true;
+        } else {
+            free_frame(upage);
+            free(spt);
+            return false;
+        }
+    } else {
+        free(spt);
+        free_frame(page);
+        return false;
+    }
+}
+
 struct sup_page_table*
 get_sup_page_table(uint8_t *upage)
 {

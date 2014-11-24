@@ -3,6 +3,12 @@
 
 #include <filesys/off_t.h>
 
+enum file_type {
+    FILE_,
+    SWAP_,
+    MMAP_
+};
+
 struct sup_page_table {
     // should I include the thread?
     struct file *file;
@@ -11,6 +17,7 @@ struct sup_page_table {
     uint32_t read_bytes;
     uint32_t zero_bytes;
     bool writable;
+    enum file_type type;
     struct hash_elem elem;
 };
 
