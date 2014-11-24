@@ -10,7 +10,8 @@ threads/init.o: ../../threads/init.c ../../threads/init.h \
  ../../threads/interrupt.h ../../threads/io.h ../../threads/loader.h \
  ../../threads/malloc.h ../../threads/palloc.h ../../threads/pte.h \
  ../../threads/vaddr.h ../../threads/thread.h ../../lib/kernel/list.h \
- ../../userprog/process.h ../../userprog/exception.h ../../userprog/gdt.h \
- ../../userprog/syscall.h ../../userprog/tss.h ../../devices/block.h \
- ../../devices/ide.h ../../filesys/filesys.h ../../filesys/off_t.h \
- ../../filesys/fsutil.h
+ ../../vm/page.h ../../filesys/off_t.h ../../lib/kernel/hash.h \
+ ../../lib/kernel/list.h ../../userprog/process.h \
+ ../../userprog/exception.h ../../userprog/gdt.h ../../userprog/syscall.h \
+ ../../userprog/tss.h ../../vm/frame.h ../../devices/block.h \
+ ../../devices/ide.h ../../filesys/filesys.h ../../filesys/fsutil.h
