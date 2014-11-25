@@ -4,7 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "vm/page.h"
 #include <hash.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -93,7 +95,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    
+    //struct page* page;                  /* the page current thread is assigned*/
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -107,9 +110,11 @@ struct thread
     struct list files;
     int next_fd;
     struct file *process_file;
-
+    
+    struct list mmap_files;
+    int next_mmap_fd;
     struct semaphore *exec_sema;
-
+    struct lock pgdir_lock;
     int ret_status;
 
     // Store all supplemental page tables here and load 
@@ -167,15 +172,17 @@ struct child_status {
 };
 
 struct file_handle {
-    int fd;
-    struct file *file;
-    struct list_elem elem;
+  int fd;
+  struct file *file;
+  struct list_elem elem;
+  void* uaddr;
 };
 
 struct child_status* get_child_status(tid_t child_tid);
 struct child_status* make_child_status(void);
 struct thread* get_thread_by_tid(tid_t tid);
 int thread_add_fd(struct file *file);
+int thread_add_mmap_fd(struct file *file);
 struct file_handle* thread_get_fh(struct list *files, int fd);
 void thread_remove_file (struct file_handle *fh);
 #endif /* threads/thread.h */

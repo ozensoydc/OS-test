@@ -16,5 +16,6 @@ struct frame {
 void frame_init(void);
 void* get_frame(void *upage, enum palloc_flags flags);
 bool free_frame(void *addr);
+bool evict_frame();
 
 #endif

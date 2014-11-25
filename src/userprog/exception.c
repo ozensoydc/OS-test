@@ -162,6 +162,7 @@ page_fault (struct intr_frame *f)
           load_page(spt);
           success = true;
       } else if (fault_addr >= f->esp - 32) {
+          printf("Increasing stack!\n");
           success = increase_stack(fault_addr);
       }
   }

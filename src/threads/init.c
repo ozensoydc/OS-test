@@ -31,6 +31,7 @@
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -425,6 +426,7 @@ locate_block_devices (void)
   locate_block_device (BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device (BLOCK_SWAP, swap_bdev_name);
+  //swap_init();
 #endif
 }
 

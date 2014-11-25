@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 #include "threads/interrupt.h"
@@ -12,7 +13,9 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/input.h"
-
+#include "vm/frame.h"
+#include "vm/page.h"
+#include "threads/malloc.h"
 //#define USER_VADDR_BOTTOM ((void *) 0x0804000)
 
 static void syscall_handler (struct intr_frame *);
@@ -34,6 +37,8 @@ void seek(int fd, unsigned position);
 unsigned tell(int fd);
 int open(const char *file);
 void close(int fd);
+mapid_t mmap(int fd, void *addr);
+void munmap(mapid_t mapping);
 
 struct lock filesys_lock;
 void get_args(struct intr_frame *f, int *arg, int n);
@@ -48,109 +53,247 @@ syscall_init (void)
 static void// 
 syscall_handler (struct intr_frame *f) 
 {
-    int args[3];
-    // The f-esp is void *, stack memory location, so dereference at location to get value
-    switch (* (int *) f->esp)
+  int args[3];
+  // The f-esp is void *, stack memory location, so dereference at location to get value
+  switch (* (int *) f->esp)
     {
-        case SYS_HALT:
-            {
-                halt();
-                break;
-            }
-        case SYS_EXIT:
-            {
-                //printf("exiting\n");
-                get_args(f, args, 1);
-                f->eax = args[0];
-                exit(args[0]);
-                break;
-            }
-        case SYS_EXEC:
-            {
-                f->eax = 10;
-                get_args(f, args, 1);
-                args[0] = user_to_kernel_pointer((const void *) args[0]);
-                f->eax = exec((const char *) args[0]);
-                break;
-            }
-        case SYS_WRITE:
-            {
-                //printf("writing file\n");
-                get_args(f, args, 3);
-                check_valid_buffer((void *) args[1], (unsigned) args[2]);
-                const void *test = user_to_kernel_pointer((const void *) args[1]);
-                f->eax = write(args[0], test, (unsigned) args[2]);
-                break;
-            }
-        case SYS_WAIT:
-            {
-                get_args(f, args, 1);
-                f->eax = wait(args[0]);
-                break;
-            }
-        case SYS_CREATE:
-            {
-                //printf("creating file\n");
-                get_args(f, args, 2);
-                args[0] = user_to_kernel_pointer((const void *) args[0]);
-                f->eax = create((const char *) args[0], (unsigned) args[1]);
-                break;
-            }
-        case SYS_REMOVE:
-            {
-                //printf("removing file\n");
-                get_args(f, args, 1);
-                args[0] = user_to_kernel_pointer((const void *) args[0]);
-                f->eax = remove((const char *) args[0]);
-            }
-        case SYS_OPEN:
-            {
-                //printf("opening file\n");
-                get_args(f, args, 1);
-                args[0] = user_to_kernel_pointer((const void *) args[0]);
-                f->eax = open((const char *) args[0]);
-                break;
-            }
-        case SYS_FILESIZE:
-            {
-                //printf("checking filesize\n");
-                get_args(f, args, 1);
-                f->eax = filesize(args[0]);
-                break;
-            }
-        case SYS_READ:
-            {
-                //printf("reading file\n");
-                get_args(f, args, 3);
-                check_valid_buffer((void *) args[1], (unsigned) args[2]);
-                args[1] = user_to_kernel_pointer((const void *) args[1]);
-                f->eax = read(args[0], (void *) args[1], (unsigned) args[2]);
-                break;
-            }
-        case SYS_SEEK:
-            {
-                //printf("seeking file\n");
-                get_args(f, args, 2);
-                seek(args[0], (unsigned) args[1]);
-                break;
-            }
-        case SYS_TELL:
-            {
-                //printf("telling file\n");
-                get_args(f, args, 1);
-                seek(args[0], (unsigned) args[1]);
-                break;
-            }
-        case SYS_CLOSE:
-            {
-                //printf("closing file\n");
-                get_args(f, args, 1);
-                close(args[0]);
-                break;
-            }
-
-
+    case SYS_HALT:
+      {
+	halt();
+	break;
+      }
+    case SYS_EXIT:
+      {
+	//printf("exiting\n");
+	get_args(f, args, 1);
+	f->eax = args[0];
+	exit(args[0]);
+	break;
+      }
+    case SYS_EXEC:
+      {
+	f->eax = 10;
+	get_args(f, args, 1);
+	args[0] = user_to_kernel_pointer((const void *) args[0]);
+	f->eax = exec((const char *) args[0]);
+	break;
+      }
+    case SYS_WRITE:
+      {
+	//printf("writing file\n");
+	get_args(f, args, 3);
+	check_valid_buffer((void *) args[1], (unsigned) args[2]);
+	const void *test = user_to_kernel_pointer((const void *) args[1]);
+	f->eax = write(args[0], test, (unsigned) args[2]);
+	break;
+      }
+    case SYS_WAIT:
+      {
+	get_args(f, args, 1);
+	f->eax = wait(args[0]);
+	break;
+      }
+    case SYS_CREATE:
+      {
+	//printf("creating file\n");
+	get_args(f, args, 2);
+	args[0] = user_to_kernel_pointer((const void *) args[0]);
+	f->eax = create((const char *) args[0], (unsigned) args[1]);
+	break;
+      }
+    case SYS_REMOVE:
+      {
+	//printf("removing file\n");
+	get_args(f, args, 1);
+	args[0] = user_to_kernel_pointer((const void *) args[0]);
+	f->eax = remove((const char *) args[0]);
+      }
+    case SYS_OPEN:
+      {
+	//printf("opening file\n");
+	get_args(f, args, 1);
+	args[0] = user_to_kernel_pointer((const void *) args[0]);
+	f->eax = open((const char *) args[0]);
+	break;
+      }
+    case SYS_FILESIZE:
+      {
+	//printf("checking filesize\n");
+	get_args(f, args, 1);
+	f->eax = filesize(args[0]);
+	break;
+      }
+    case SYS_READ:
+      {
+	//printf("reading file\n");
+	get_args(f, args, 3);
+	check_valid_buffer((void *) args[1], (unsigned) args[2]);
+	args[1] = user_to_kernel_pointer((const void *) args[1]);
+	f->eax = read(args[0], (void *) args[1], (unsigned) args[2]);
+	break;
+      }
+    case SYS_SEEK:
+      {
+	//printf("seeking file\n");
+	get_args(f, args, 2);
+	seek(args[0], (unsigned) args[1]);
+	break;
+      }
+    case SYS_TELL:
+      {
+	//printf("telling file\n");
+	get_args(f, args, 1);
+	seek(args[0], (unsigned) args[1]);
+	break;
+      }
+    case SYS_CLOSE:
+      {
+	//printf("closing file\n");
+	get_args(f, args, 1);
+	close(args[0]);
+	break;
+      }
+    case SYS_MMAP:
+      {
+	get_args(f,args,2);
+	f->eax = mmap((int)args[0],(void*)args[1]);
+	//printf("returned %d\n",f->eax);
+	break;
+      }
+    case SYS_MUNMAP:
+      {
+	get_args(f,args,1);
+	f->eax = args[0];
+	munmap((int)args[0]);
+	break;
+      }
     }
+}
+
+mapid_t mmap(int fd, void *addr){
+  //printf("in mmap fd is %d, addr is %d\n",fd,addr);
+  size_t file_size;// = filesize(fd);
+  struct thread *t = thread_current();
+  struct file_handle *fh = thread_get_fh(&t->files, fd);
+  
+  if (fh == NULL) {
+    //printf("no file pointed to by descriptor going to return -1\n");
+    return -1;
+  }
+  
+  file_size=file_length(fh->file);
+
+  //printf("file size is %d\n", file_size);
+  if(file_size == 0){
+    printf("file_size 0\n");
+    return -1;
+  }
+  else if(pg_ofs(addr)!=0){
+    //printf("not page aligned\n");
+    return -1;
+  }
+  else if(get_sup_page_table(addr)!=NULL){
+    //printf("address already mapped by other process\n");
+    return -1;
+  }
+  else if(addr==0 || fd==1 || fd==0){
+    //printf("invalid addr, or fd\n");
+    return -1;
+  }
+  fh->uaddr=addr;
+  //printf("going to malloc buf\n");
+  
+  int num_pages = file_size/PGSIZE;
+  if(file_size%PGSIZE>0){
+    num_pages++;
+  }
+  int i=0;
+  int offset=0;
+  int mmap_fd = thread_add_mmap_file(file_reopen(fh->file));
+  
+  struct file_handle * mmap_fh = thread_get_fh(&t->mmap_files,mmap_fd);
+  mmap_fh->uaddr=addr;
+  //printf("about to enter the for loop. num_pages: %d, mmap_fd: %d\n, PGSIZE: %d", num_pages, mmap_fd, PGSIZE);
+  for(;i<num_pages;i++){
+    offset=i*PGSIZE;
+    lock_acquire(&t->pgdir_lock);
+    //printf("about to pgdir\n");
+    void *pgdir = pagedir_get_page(t->pagedir,addr+offset);
+    lock_release(&t->pgdir_lock);
+    
+    if(pgdir != NULL){
+      printf("overlap\n");
+      return -1;
+    }
+    //printf("about to enter create_sup_page_table\n");
+    if(i!=(num_pages-1)){
+	create_sup_page_table(mmap_fh->file,offset,addr+offset,PGSIZE,0,true);
+    }
+    if(i==num_pages-1){
+      int zeroes=PGSIZE - file_size%PGSIZE;
+	create_sup_page_table(mmap_fh->file,offset,addr+offset,
+			      file_size%PGSIZE,zeroes,true);
+    }
+    //printf("sup_page_table created\n");
+  }
+  return mmap_fd;
+  
+}
+
+void munmap(mapid_t mapping){
+  printf("in munmap mapid_t: %d\n",mapping);
+  struct thread* t = thread_current();
+  struct file_handle* fh = thread_get_fh(&t->mmap_files, mapping);
+  if(fh == NULL){
+    printf("file was not found\n");
+  }
+  //struct frame* init_frame = frame_lookup(vtop((void*)mapping));
+  /*need init frame*/
+  //struct sup_page_table* init_stp = get_sup_page_table(mapping);
+  int size = file_length(fh->file);
+  int num_frames = size/PGSIZE;
+  if(size%PGSIZE>0){
+    num_frames++;
+  }
+  //printf("about to enter for loop\n");
+  int i=0;
+  int offset=0;
+  //char *buf=(char*)malloc(sizeof(char)*PGSIZE);
+  bool dirty;
+  printf("num_frames: %d\n",num_frames);
+  void* addr = fh->uaddr;
+  for(;i<num_frames;i++){
+    void* mem_addr;
+    mem_addr=addr + i*PGSIZE;
+    dirty = pagedir_is_dirty(t->pagedir,mem_addr);
+    
+    void * cur_page=pagedir_get_page(t->pagedir,mem_addr);
+    printf("see if page is dirty\n");
+    
+    if(dirty){
+      printf("page is dirty\n");
+      file_seek(fh->file,i*PGSIZE);
+      printf("about to write\n");
+      lock_acquire(&filesys_lock);
+      
+      if(i<num_frames-1){
+	file_write(fh->file, mem_addr,PGSIZE);
+      }
+      else{
+	file_write(fh->file, mem_addr,size%PGSIZE);
+      }
+      lock_release(&filesys_lock);
+    }
+    
+    lock_acquire(&t->pgdir_lock);
+    pagedir_clear_page(t->pagedir, fh->uaddr+i*PGSIZE);
+    lock_release(&t->pgdir_lock);
+    
+  }
+  
+  list_remove(&fh->elem);
+  file_close(fh->file);
+  free(fh);
 }
 
 void
@@ -213,16 +356,16 @@ write(int fd, const void *buffer, unsigned size)
 void
 seek(int fd, unsigned position)
 {
-    struct thread *t = thread_current();
-    struct file_handle *fh = thread_get_fh(&t->files, fd);
-
-    if (fh == NULL) {
-        exit(-1);
-    }
-
-    lock_acquire(&filesys_lock);
-    file_seek(fh->file, position);
-    lock_release(&filesys_lock);
+  struct thread *t = thread_current();
+  struct file_handle *fh = thread_get_fh(&t->files, fd);
+  
+  if (fh == NULL) {
+    exit(-1);
+  }
+  
+  lock_acquire(&filesys_lock);
+  file_seek(fh->file, position);
+  lock_release(&filesys_lock);
 }
 
 bool
@@ -246,14 +389,14 @@ remove(const char *file)
 int
 filesize(int fd)
 {
-    struct thread *t = thread_current();
-    struct file_handle *fh = thread_get_fh(&t->files, fd);
-
-    if (fh == NULL) {
-        exit(-1);
-    }
-
-    return file_length(fh->file);
+  struct thread *t = thread_current();
+  struct file_handle *fh = thread_get_fh(&t->files, fd);
+  
+  if (fh == NULL) {
+    exit(-1);
+  }
+  
+  return file_length(fh->file);
 }
 
 int
@@ -364,7 +507,7 @@ close(int fd)
 void
 check_valid_pointer(const void *vaddr)
 {
-    if (!is_user_vaddr(vaddr) || !pagedir_get_page(thread_current()->pagedir, vaddr) ) {
+  if (!is_user_vaddr(vaddr) || !pagedir_get_page(thread_current()->pagedir, vaddr) ) {
         exit(-1);
     }
 }

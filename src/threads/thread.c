@@ -180,14 +180,14 @@ thread_create (const char *name, int priority,
   ASSERT (function != NULL);
 
   /* Allocate thread. */
-  t = palloc_get_page (PAL_ZERO);
+  t = palloc_get_page (PAL_ZERO);//get_free_page(PAL_ZERO);//
   if (t == NULL)
     return TID_ERROR;
-
+  
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
+  //t->page = page_for_addr(tid);  /*new line*/
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -506,7 +506,10 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children);
   list_init(&t->child_stati);
   list_init(&t->files);
+  list_init(&t->mmap_files);
+  lock_init(&t->pgdir_lock);
   t->next_fd = 3;
+  t->next_mmap_fd = 3;
   //hash_init(&t->sup_page_tables, sup_page_table_hash, sup_page_table_less, NULL);
 #endif
 
@@ -583,6 +586,7 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
+      //free_page(prev);
       palloc_free_page (prev);
     }
 }
@@ -712,6 +716,17 @@ void
 thread_remove_file(struct file_handle *fh)
 {
     list_remove(&fh->elem);
+}
+
+int thread_add_mmap_file(struct file* file){
+  struct file_handle* fh=malloc(sizeof(struct file_handle));
+  struct thread* t= thread_current();
+  fh->fd = t->next_mmap_fd++;
+  fh->file = file;
+  //printf("did thread_add_mmap fail?\n");
+  list_push_front(&t->mmap_files,&fh->elem);
+  //printf("no it did not\n");
+  return fh->fd;
 }
 
 /* Returns a tid to use for a new thread. */

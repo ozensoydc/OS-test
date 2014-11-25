@@ -11,7 +11,9 @@
 #include "userprog/process.h"
 #include <stdio.h>
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
+struct sup_page_table* get_sup_page_table_by_thread(uint8_t *upage, struct thread *t);
 
 bool
 create_sup_page_table(struct file *file, off_t ofs, uint8_t *upage, 
@@ -26,6 +28,9 @@ create_sup_page_table(struct file *file, off_t ofs, uint8_t *upage,
     spt->read_bytes = read_bytes;
     spt->zero_bytes = zero_bytes;
     spt->writable = writable;
+    // Kinda shitty, but have this set by context outside of the call
+    //spt->should_swap = false;
+    spt->swap_index = -1;
 
     // does this need to be protected
     if (spt != NULL) {
@@ -108,6 +113,29 @@ get_sup_page_table(uint8_t *upage)
     if (e != NULL) {
         return hash_entry(e, struct sup_page_table, elem);
     } else {
+        return NULL;
+    }
+}
+
+struct sup_page_table*
+get_sup_page_table_by_thread(uint8_t *upage, struct thread *t) 
+{
+    printf("calling %s\n", t->name);
+    struct sup_page_table spt;
+    struct hash_elem *e;
+    struct hash *sup_page_tables = &t->sup_page_tables;
+
+    printf("number of values is %d\n", sup_page_tables->elem_cnt);
+    printf("lala\n");
+    spt.upage = pg_round_down(upage);
+    printf("haha\n");
+    e = hash_find(sup_page_tables, &spt.elem);
+
+    printf("after hash_find\n");
+    if (e != NULL) {
+        return hash_entry(e, struct sup_page_table, elem);
+    } else {
+        printf("failure\n");
         return NULL;
     }
 }

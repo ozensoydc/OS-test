@@ -1,7 +1,8 @@
 #ifndef PAGE_H
 #define PAGE_H
 
-#include <filesys/off_t.h>
+#include "filesys/off_t.h"
+#include <hash.h>
 
 enum file_type {
     FILE_,
@@ -18,6 +19,8 @@ struct sup_page_table {
     uint32_t zero_bytes;
     bool writable;
     enum file_type type;
+    bool should_swap;
+    bool swap_index;
     struct hash_elem elem;
 };
 
@@ -27,6 +30,7 @@ bool load_page(struct sup_page_table *spt);
 struct sup_page_table* get_sup_page_table(uint8_t *upage);
 bool sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 unsigned sup_page_table_hash(const struct hash_elem *elem, void *aux);
+//struct sup_page_table* get_sup_page_table_by_thread(uint8_t *upage, struct thread *t);
 
 
 #endif
