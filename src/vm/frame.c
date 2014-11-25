@@ -56,6 +56,7 @@ void*
 get_multiple_frames(void *upage, enum palloc_flags flags, int num_frames,
 		    struct file* file)
 {
+  printf("in get_multiple_frames\n");
   void* page = palloc_get_multiple(flags, num_frames);
   if(page != NULL){
     int i=0;
@@ -67,10 +68,12 @@ get_multiple_frames(void *upage, enum palloc_flags flags, int num_frames,
       lock_acquire(&frames_lock);
       hash_insert(&frames,&f->elem);
       lock_release(&frames_lock);
+      printf("in frame construction loop\n");
     }
     return page;
   }
   else{
+    printf("going to enter scan multiple\n");
     scan_multiple(upage, flags, false, num_frames, 0,file);
     
   }

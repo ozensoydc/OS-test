@@ -506,7 +506,10 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children);
   list_init(&t->child_stati);
   list_init(&t->files);
+  list_init(&t->mmap_files);
+  lock_init(&t->pgdir_lock);
   t->next_fd = 3;
+  t->next_mmap_fd = 3;
   //hash_init(&t->sup_page_tables, sup_page_table_hash, sup_page_table_less, NULL);
 #endif
 
@@ -713,6 +716,17 @@ void
 thread_remove_file(struct file_handle *fh)
 {
     list_remove(&fh->elem);
+}
+
+int thread_add_mmap_file(struct file* file){
+  struct file_handle* fh=malloc(sizeof(struct file_handle));
+  struct thread* t= thread_current();
+  fh->fd = t->next_mmap_fd++;
+  fh->file = file;
+  //printf("did thread_add_mmap fail?\n");
+  list_push_front(&t->mmap_files,&fh->elem);
+  //printf("no it did not\n");
+  return fh->fd;
 }
 
 /* Returns a tid to use for a new thread. */

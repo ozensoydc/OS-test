@@ -88,8 +88,9 @@ start_process (void *file_name_)
   char *file_name_to_load;
   char *token, *save_ptr;
 
-  hash_init(&thread_current()->sup_page_tables, sup_page_table_hash,
-          sup_page_table_less, NULL);
+  init_spt();
+  //hash_init(&thread_current()->sup_page_tables, sup_page_table_hash,
+  //sup_page_table_less, NULL);
   //page_table_init(&thread_current()->sup_page_tables);
 
   /* Initialize interrupt frame and load executable. */

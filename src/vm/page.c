@@ -11,6 +11,14 @@
 #include "userprog/process.h"
 #include <stdio.h>
 #include "threads/vaddr.h"
+#include <stdbool.h>
+
+
+unsigned sup_page_table_hash(const struct hash_elem *elem, void *aux);
+bool sup_page_table_less(const struct hash_elem *a,
+			 const struct hash_elem*b,
+			 void *aux);
+
 
 
 bool
@@ -35,6 +43,12 @@ create_sup_page_table(struct file *file, off_t ofs, uint8_t *upage,
         return false;
     }
 }
+
+void init_spt(void){
+  hash_init(&thread_current()->sup_page_tables, sup_page_table_hash,
+	    sup_page_table_less, NULL);
+}
+
 
 bool create_sup_page_tables(struct file *file, off_t ofs, off_t bytes,
 			   uint8_t *upage, uint32_t read_bytes, 
@@ -93,7 +107,7 @@ sup_page_table_less(const struct hash_elem *a, const struct hash_elem *b, void *
 
     return (a_table->upage) < (b_table->upage);
 }
-/*
+
 unsigned
 sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
 {
@@ -101,10 +115,11 @@ sup_page_table_hash(const struct hash_elem *elem, void *aux UNUSED)
 
     return hash_int((unsigned) spt->upage);
 }
-
+/*
 struct sup_page_table* spt_lookup(void* addr){
   struct sup_page_table p;
   struct thread* t=thread_current();
   p.addr=
 }
+
 */

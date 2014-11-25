@@ -6,5 +6,6 @@ devices/usb_uhci.o: ../../devices/usb_uhci.c ../../lib/round.h \
  ../../threads/loader.h ../../threads/malloc.h ../../threads/palloc.h \
  ../../threads/synch.h ../../lib/kernel/list.h ../../threads/interrupt.h \
  ../../threads/thread.h ../../vm/page.h ../../filesys/off_t.h \
- ../../lib/kernel/hash.h ../../lib/kernel/list.h ../../devices/pci.h \
- ../../devices/usb.h ../../lib/kernel/list.h ../../devices/timer.h
+ ../../lib/kernel/hash.h ../../lib/kernel/list.h ../../filesys/file.h \
+ ../../devices/pci.h ../../devices/usb.h ../../lib/kernel/list.h \
+ ../../devices/timer.h

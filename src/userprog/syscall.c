@@ -37,7 +37,7 @@ void seek(int fd, unsigned position);
 unsigned tell(int fd);
 int open(const char *file);
 void close(int fd);
-void* mmap(int fd, void *addr);
+mapid_t mmap(int fd, void *addr);
 void munmap(mapid_t mapping);
 
 struct lock filesys_lock;
@@ -157,6 +157,7 @@ syscall_handler (struct intr_frame *f)
       {
 	get_args(f,args,2);
 	f->eax = mmap((int)args[0],(void*)args[1]);
+	//printf("returned %d\n",f->eax);
 	break;
       }
     case SYS_MUNMAP:
@@ -169,61 +170,130 @@ syscall_handler (struct intr_frame *f)
     }
 }
 
-void* mmap(int fd, void *addr){
-  int file_size = file_length ((struct file*)fd);
-  char *buf=(char*)malloc(sizeof(char)*PGSIZE);
-  int num_pages = file_size/PGSIZE;
-  void *memory = get_multiple_frames(addr,PAL_ZERO | PAL_USER,false, num_pages);
+mapid_t mmap(int fd, void *addr){
+  //printf("in mmap fd is %d, addr is %d\n",fd,addr);
+  size_t file_size;// = filesize(fd);
   struct thread *t = thread_current();
-  struct sup_page_table *spts = 
-    (struct sup_page_table *) malloc(sizeof(struct sup_page_table)*num_pages);
+  struct file_handle *fh = thread_get_fh(&t->files, fd);
+  
+  if (fh == NULL) {
+    //printf("no file pointed to by descriptor going to return -1\n");
+    return -1;
+  }
+  
+  file_size=file_length(fh->file);
+
+  //printf("file size is %d\n", file_size);
+  if(file_size == 0){
+    printf("file_size 0\n");
+    return -1;
+  }
+  else if(pg_ofs(addr)!=0){
+    //printf("not page aligned\n");
+    return -1;
+  }
+  else if(get_sup_page_table(addr)!=NULL){
+    //printf("address already mapped by other process\n");
+    return -1;
+  }
+  else if(addr==0 || fd==1 || fd==0){
+    //printf("invalid addr, or fd\n");
+    return -1;
+  }
+  fh->uaddr=addr;
+  //printf("going to malloc buf\n");
+  
+  int num_pages = file_size/PGSIZE;
+  if(file_size%PGSIZE>0){
+    num_pages++;
+  }
   int i=0;
   int offset=0;
+  int mmap_fd = thread_add_mmap_file(file_reopen(fh->file));
+  
+  struct file_handle * mmap_fh = thread_get_fh(&t->mmap_files,mmap_fd);
+  mmap_fh->uaddr=addr;
+  //printf("about to enter the for loop. num_pages: %d, mmap_fd: %d\n, PGSIZE: %d", num_pages, mmap_fd, PGSIZE);
   for(;i<num_pages;i++){
-    struct sup_page_table* spt=&spts[i];
-    spt->file = fd;
-    spt->ofs = i*PGSIZE;
-    spt->upage = memory + i*PGSIZE;
+    offset=i*PGSIZE;
+    lock_acquire(&t->pgdir_lock);
+    //printf("about to pgdir\n");
+    void *pgdir = pagedir_get_page(t->pagedir,addr+offset);
+    lock_release(&t->pgdir_lock);
+    
+    if(pgdir != NULL){
+      printf("overlap\n");
+      return -1;
+    }
+    //printf("about to enter create_sup_page_table\n");
     if(i!=(num_pages-1)){
-      spt->read_bytes = PGSIZE;
-      spt->zero_bytes = 0;
-      file_read_at(fd,buf,PGSIZE,offset);
-      mempcpy(addr+offset,buf,PGSIZE);
-      offset+=PGSIZE;
+	create_sup_page_table(mmap_fh->file,offset,addr+offset,PGSIZE,0,true);
     }
     if(i==num_pages-1){
-      spt->read_bytes = file_size % PGSIZE;
-      spt->zero_bytes =PGSIZE - spt->read_bytes;
-      file_read_at(fd,buf,file_size%PGSIZE,offset);
-      mempcpy(addr+offset,buf,file_size%PGSIZE);
+      int zeroes=PGSIZE - file_size%PGSIZE;
+	create_sup_page_table(mmap_fh->file,offset,addr+offset,
+			      file_size%PGSIZE,zeroes,true);
     }
-    spt->writable = true;
+    //printf("sup_page_table created\n");
   }
-  free(buf);
-  return memory;
+  return mmap_fd;
   
 }
 
 void munmap(mapid_t mapping){
-  struct frame* init_frame = lookup_frame(vtop((void*)mapping));
+  printf("in munmap mapid_t: %d\n",mapping);
+  struct thread* t = thread_current();
+  struct file_handle* fh = thread_get_fh(&t->mmap_files, mapping);
+  if(fh == NULL){
+    printf("file was not found\n");
+  }
+  //struct frame* init_frame = frame_lookup(vtop((void*)mapping));
   /*need init frame*/
-  struct sup_page_table* init_stp = get_sup_page_table(mapping);
-  int size = file_length(init_stp->file);
+  //struct sup_page_table* init_stp = get_sup_page_table(mapping);
+  int size = file_length(fh->file);
   int num_frames = size/PGSIZE;
+  if(size%PGSIZE>0){
+    num_frames++;
+  }
+  //printf("about to enter for loop\n");
   int i=0;
   int offset=0;
-  char *buf=(char*)malloc(sizeof(char)*PGSIZE);
-			 
+  //char *buf=(char*)malloc(sizeof(char)*PGSIZE);
+  bool dirty;
+  printf("num_frames: %d\n",num_frames);
+  void* addr = fh->uaddr;
   for(;i<num_frames;i++){
-    mempcpy(buf,mapping+offset,PGSIZE);
-    file_write_at(init_stp->file,buf,PGSIZE,offset);
-    offset+=PGSIZE;
+    void* mem_addr;
+    mem_addr=addr + i*PGSIZE;
+    dirty = pagedir_is_dirty(t->pagedir,mem_addr);
+    
+    void * cur_page=pagedir_get_page(t->pagedir,mem_addr);
+    printf("see if page is dirty\n");
+    
+    if(dirty){
+      printf("page is dirty\n");
+      file_seek(fh->file,i*PGSIZE);
+      printf("about to write\n");
+      lock_acquire(&filesys_lock);
+      
+      if(i<num_frames-1){
+	file_write(fh->file, mem_addr,PGSIZE);
+      }
+      else{
+	file_write(fh->file, mem_addr,size%PGSIZE);
+      }
+      lock_release(&filesys_lock);
+    }
+    
+    lock_acquire(&t->pgdir_lock);
+    pagedir_clear_page(t->pagedir, fh->uaddr+i*PGSIZE);
+    lock_release(&t->pgdir_lock);
+    
   }
-  for(i;i>0;i--){
-    free_frame(vtop(mapping)+i*PGSIZE);
-  }
-  free(mapping);
-  free(buf);
+  
+  list_remove(&fh->elem);
+  file_close(fh->file);
+  free(fh);
 }
 
 void
@@ -319,14 +389,14 @@ remove(const char *file)
 int
 filesize(int fd)
 {
-    struct thread *t = thread_current();
-    struct file_handle *fh = thread_get_fh(&t->files, fd);
-
-    if (fh == NULL) {
-        exit(-1);
-    }
-
-    return file_length(fh->file);
+  struct thread *t = thread_current();
+  struct file_handle *fh = thread_get_fh(&t->files, fd);
+  
+  if (fh == NULL) {
+    exit(-1);
+  }
+  
+  return file_length(fh->file);
 }
 
 int
@@ -437,7 +507,7 @@ close(int fd)
 void
 check_valid_pointer(const void *vaddr)
 {
-    if (!is_user_vaddr(vaddr) || !pagedir_get_page(thread_current()->pagedir, vaddr) ) {
+  if (!is_user_vaddr(vaddr) || !pagedir_get_page(thread_current()->pagedir, vaddr) ) {
         exit(-1);
     }
 }
