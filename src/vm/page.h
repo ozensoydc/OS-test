@@ -6,7 +6,7 @@
 #include "filesys/file.h"
 #include <stdbool.h>
 struct sup_page_table {
-  // should I include the thread?
+  // should I include the thread? trivial
   struct file *file;
   off_t ofs;
   //off_t bytes;
